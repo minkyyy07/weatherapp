@@ -4,8 +4,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.ContentView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -119,12 +121,52 @@ fun WeatherScreen() {
                                     .fillMaxWidth()
                                     .height(100.dp)
                                     .padding(horizontal = 8.dp),
+                                    verticalAlignment =  Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-
+                                    WeatherDetailItem(
+                                        icon = R.drawable.rain,
+                                        value = "22%",
+                                        label = "Rain"
+                                    )
+                                    WeatherDetailItem(
+                                        icon = R.drawable.wind,
+                                        value = "26%",
+                                        label = "Wind Speed"
+                                    )
+                                    WeatherDetailItem(
+                                        icon = R.drawable.humidity,
+                                        value = "18%",
+                                        label = "Humidity"
+                                    )
                                 }
                             }
+
+                            // Display weather details
+
                         }
                     }
        }
+    }
+}
+
+@Composable
+fun WeatherDetailItem(icon:Int, value:String, label:String) {
+    Column(modifier = Modifier.padding(16.dp)
+        ,horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Image(painter = painterResource(id = icon)
+            , contentDescription = null,
+            modifier = Modifier.size(34.dp)
+        )
+        Text(text = value,
+            fontWeight = FontWeight.Bold,
+            color = colorResource(id = R.color.white),
+            textAlign = TextAlign.Center
+       )
+        Text(text = label,
+            color = colorResource(id = R.color.white),
+            textAlign = TextAlign.Center
+        )
     }
 }
