@@ -11,10 +11,11 @@ data class WeatherResponse(
 
 data class Main(
     val temp: Float,
-    val feels_like: Float,
-    val temp_min: Float,
-    val temp_max: Float,
-    val humidity: Int
+    val feelsLike: Float,
+    val tempMin: Float,
+    val tempMax: Float,
+    val humidity: Int,
+    val pressure: Int = 0
 )
 
 data class Weather(
@@ -25,15 +26,22 @@ data class Weather(
 )
 
 data class Wind(
-    val speed: Float
+    val speed: Float,
+    val deg: Int = 0
 )
 
 data class ForecastResponse(
-    val list: List<ForecastItem>
+    val list: List<ForecastItem>,
+    val city: City = City(0, "")
 )
 
 data class ForecastItem(
     val dt: Long,
     val main: Main,
     val weather: List<Weather>
+)
+
+data class City(
+    val id: Long,
+    val name: String
 )

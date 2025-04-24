@@ -6,15 +6,18 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -41,11 +44,18 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
-    // Fetch data when screen is first displayed
-    LaunchedEffect(key1 = true) {
-        viewModel.getWeatherData()
+    // Keep "Nüremberg" in the list but handle API mapping internally
+    val cities = listOf("London", "New York", "Tokyo", "Paris", "Moscow", "Berlin", "Sydney", "Nüremberg")
+    var selectedCity by remember { mutableStateOf("London") }
+    var expanded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(key1 = selectedCity) {
+        // Map "Nüremberg" to "Nuremberg" for API calls but display "Nüremberg" in UI
+        val apiCity = if (selectedCity == "Nüremberg") "Nuremberg" else selectedCity
+        viewModel.getWeatherData(apiCity)
     }
 
     Box(
@@ -59,30 +69,31 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                     )
                 )
             ),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center // Centers the entire content
     ) {
         when (val state = viewModel.weatherState) {
             is WeatherViewModel.WeatherUiState.Loading -> {
                 CircularProgressIndicator(color = Color.White)
             }
             is WeatherViewModel.WeatherUiState.Error -> {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "Error: ${state.message}",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        textAlign = TextAlign.Center
-                    )
-                }
+                Text(
+                    text = "Error: ${state.message}",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    textAlign = TextAlign.Center
+                )
             }
             is WeatherViewModel.WeatherUiState.Success -> {
                 val data = state.data
+                // If the city is Nuremberg but we're displaying Nüremberg, fix the display name
+                val displayData = if (selectedCity == "Nüremberg" && data.cityName == "Nuremberg") {
+                    data.copy(cityName = "Nüremberg")
+                } else data
+
                 Column(
                     modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center // Centers content vertically
                 ) {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
@@ -90,17 +101,86 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                         verticalArrangement = Arrangement.Center
                     ) {
                         item {
+                            // City selector dropdown
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 16.dp, start = 16.dp, end = 16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                ExposedDropdownMenuBox(
+                                    expanded = expanded,
+                                    onExpandedChange = { expanded = !expanded },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(
+                                            color = colorResource(id = R.color.purple),
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .menuAnchor()
+                                            .clickable { expanded = true }
+                                            .padding(16.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Default.Search,
+                                                contentDescription = "Location",
+                                                tint = Color.White
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = selectedCity,
+                                                color = Color.White,
+                                                fontSize = 18.sp
+                                            )
+                                        }
+                                        Icon(
+                                            imageVector = if (expanded)
+                                                Icons.Default.KeyboardArrowUp
+                                            else
+                                                Icons.Default.KeyboardArrowDown,
+                                            contentDescription = "Toggle Dropdown",
+                                            tint = Color.White
+                                        )
+                                    }
+
+                                    ExposedDropdownMenu(
+                                        expanded = expanded,
+                                        onDismissRequest = { expanded = false },
+                                        modifier = Modifier.background(
+                                            colorResource(id = R.color.purple)
+                                        )
+                                    ) {
+                                        cities.forEach { city ->
+                                            DropdownMenuItem(
+                                                text = { Text(text = city, color = Color.White) },
+                                                onClick = {
+                                                    selectedCity = city
+                                                    expanded = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
                             Text(
-                                text = data.description,
+                                text = displayData.description,
                                 fontSize = 20.sp,
                                 color = Color.White,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(top = 48.dp),
+                                    .padding(top = 24.dp),
                                 textAlign = TextAlign.Center
                             )
 
-                            val weatherIconId = when (data.weatherType) {
+                            val weatherIconId = when (displayData.weatherType) {
                                 "cloudy" -> R.drawable.cloudy
                                 "sunny" -> R.drawable.sunny
                                 "rainy" -> R.drawable.rain
@@ -126,7 +206,7 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                             )
 
                             Text(
-                                text = "${data.temperature}°C",
+                                text = "${displayData.temperature}°C",
                                 fontSize = 63.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White,
@@ -137,7 +217,7 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                             )
 
                             Text(
-                                text = "H:${data.maxTemp}° L:${data.minTemp}°",
+                                text = "H:${displayData.maxTemp}° L:${displayData.minTemp}°",
                                 fontSize = 16.sp,
                                 color = Color.White,
                                 modifier = Modifier
@@ -153,7 +233,8 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                                     .background(
                                         color = colorResource(id = R.color.purple),
                                         shape = RoundedCornerShape(25.dp)
-                                    )
+                                    ),
+                                contentAlignment = Alignment.Center
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -170,12 +251,12 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                                     )
                                     WeatherDetailItem(
                                         icon = R.drawable.wind,
-                                        value = "${data.windSpeed} m/s",
+                                        value = "${displayData.windSpeed} m/s",
                                         label = "Wind Speed"
                                     )
                                     WeatherDetailItem(
                                         icon = R.drawable.humidity,
-                                        value = "${data.humidity}%",
+                                        value = "${displayData.humidity}%",
                                         label = "Humidity"
                                     )
                                 }
@@ -188,6 +269,7 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 24.dp, vertical = 8.dp),
+                                textAlign = TextAlign.Center
                             )
                         }
 

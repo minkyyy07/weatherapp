@@ -12,6 +12,8 @@ import java.util.Date
 import java.util.Locale
 
 class WeatherViewModel : ViewModel() {
+    private val apiKey = "bd5e378503939ddaee76f12ad7a97608"
+
     var weatherState by mutableStateOf<WeatherUiState>(WeatherUiState.Loading)
         private set
 
@@ -23,17 +25,49 @@ class WeatherViewModel : ViewModel() {
             try {
                 weatherState = WeatherUiState.Loading
 
-                // Simulate API delay
-                kotlinx.coroutines.delay(1000)
+                if (apiKey != "YOUR_API_KEY") {
+                    val weatherResponse = RetrofitClient.weatherService.getCurrentWeather(
+                        location = city,
+                        apiKey = apiKey
+                    )
 
-                // Create mock weather data based on city
-                val mockWeatherData = createMockWeatherData(city)
+                    val weatherData = WeatherData(
+                        temperature = weatherResponse.main.temp.toInt(),
+                        description = weatherResponse.weather.firstOrNull()?.description ?: "Unknown",
+                        minTemp = weatherResponse.main.tempMin.toInt(),
+                        maxTemp = weatherResponse.main.tempMax.toInt(),
+                        humidity = weatherResponse.main.humidity,
+                        windSpeed = weatherResponse.wind.speed,
+                        cityName = weatherResponse.name,
+                        weatherType = getWeatherType(weatherResponse.weather.firstOrNull()?.main ?: "")
+                    )
 
-                // Update state with mock data
-                weatherState = WeatherUiState.Success(mockWeatherData)
+                    weatherState = WeatherUiState.Success(weatherData)
 
-                // Create mock forecast data
-                forecastState = createMockForecastData(city)
+                    val forecastResponse = RetrofitClient.weatherService.getForecast(
+                        location = city,
+                        apiKey = apiKey
+                    )
+
+                    val hourlyForecast = forecastResponse.list.take(6).map { item ->
+                        val dateTime = Date(item.dt * 1000L)
+                        val format = SimpleDateFormat("h a", Locale.getDefault())
+
+                        HourlyModel(
+                            hour = format.format(dateTime),
+                            temp = item.main.temp.toInt(),
+                            picPath = getWeatherType(item.weather.firstOrNull()?.main ?: "")
+                        )
+                    }
+
+                    forecastState = hourlyForecast
+                } else {
+                    kotlinx.coroutines.delay(1000)
+
+                    val mockWeatherData = createMockWeatherData(city)
+                    weatherState = WeatherUiState.Success(mockWeatherData)
+                    forecastState = createMockForecastData(city)
+                }
             } catch (e: Exception) {
                 weatherState = WeatherUiState.Error(e.message ?: "Unknown error")
             }
@@ -41,7 +75,6 @@ class WeatherViewModel : ViewModel() {
     }
 
     private fun createMockWeatherData(city: String): WeatherData {
-        // Different weather for different cities
         return when (city.lowercase()) {
             "london" -> WeatherData(
                 temperature = 15,
@@ -71,6 +104,16 @@ class WeatherViewModel : ViewModel() {
                 humidity = 85,
                 windSpeed = 5.0f,
                 cityName = "Tokyo",
+                weatherType = "rainy"
+            )
+            "nüremberg" -> WeatherData(
+                temperature = 14,
+                description = "Light Rain",
+                minTemp = 10,
+                maxTemp = 16,
+                humidity = 75,
+                windSpeed = 3.9f,
+                cityName = "Nüremberg",
                 weatherType = "rainy"
             )
             else -> WeatherData(
@@ -124,7 +167,6 @@ class WeatherViewModel : ViewModel() {
         }
     }
 
-    // Extension function to capitalize first letter
     private fun String.capitalize(): String {
         return this.replaceFirstChar {
             if (it.isLowerCase()) it.titlecase(Locale.getDefault())
