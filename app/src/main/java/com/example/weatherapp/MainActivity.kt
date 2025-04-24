@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -47,15 +48,24 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
-    // Keep "Nüremberg" in the list but handle API mapping internally
     val cities = listOf("London", "New York", "Tokyo", "Paris", "Moscow", "Berlin", "Sydney", "Nüremberg")
     var selectedCity by remember { mutableStateOf("London") }
     var expanded by remember { mutableStateOf(false) }
 
+    // Add debounce mechanism to prevent too many rapid API calls
+    var lastApiCallTime by remember { mutableStateOf(0L) }
+    val debounceTime = 2000L // 2 seconds between API calls
+
     LaunchedEffect(key1 = selectedCity) {
-        // Map "Nüremberg" to "Nuremberg" for API calls but display "Nüremberg" in UI
-        val apiCity = if (selectedCity == "Nüremberg") "Nuremberg" else selectedCity
-        viewModel.getWeatherData(apiCity)
+        val currentTime = System.currentTimeMillis()
+
+        // Check if enough time has passed since the last API call
+        if (currentTime - lastApiCallTime >= debounceTime) {
+            // Add a small delay to prevent immediate API calls
+            delay(300)
+            viewModel.getWeatherData(selectedCity)
+            lastApiCallTime = System.currentTimeMillis()
+        }
     }
 
     Box(
@@ -69,31 +79,47 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                     )
                 )
             ),
-        contentAlignment = Alignment.Center // Centers the entire content
+        contentAlignment = Alignment.Center
     ) {
         when (val state = viewModel.weatherState) {
             is WeatherViewModel.WeatherUiState.Loading -> {
                 CircularProgressIndicator(color = Color.White)
             }
             is WeatherViewModel.WeatherUiState.Error -> {
-                Text(
-                    text = "Error: ${state.message}",
-                    color = Color.White,
-                    fontSize = 18.sp,
-                    textAlign = TextAlign.Center
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Error: ${state.message}",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = { viewModel.getWeatherData(selectedCity) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colorResource(id = R.color.purple)
+                        )
+                    ) {
+                        Text("Retry")
+                    }
+                }
             }
             is WeatherViewModel.WeatherUiState.Success -> {
                 val data = state.data
                 // If the city is Nuremberg but we're displaying Nüremberg, fix the display name
-                val displayData = if (selectedCity == "Nüremberg" && data.cityName == "Nuremberg") {
+                val displayData = if (selectedCity == "Nüremberg" && data.cityName.equals("Nuremberg", ignoreCase = true)) {
                     data.copy(cityName = "Nüremberg")
                 } else data
 
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center // Centers content vertically
+                    verticalArrangement = Arrangement.Center
                 ) {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
