@@ -7,20 +7,14 @@ import retrofit2.http.GET
 import retrofit2.http.Query
 
 interface WeatherApiService {
-    @GET("weather")
-    suspend fun getCurrentWeather(
+    @GET("forecast.json")
+    suspend fun getForecastData(
+        @Query("key") apiKey: String,
         @Query("q") location: String,
-        @Query("units") units: String = "metric",
-        @Query("appid") apiKey: String
-    ): WeatherResponse
-
-    @GET("forecast")
-    suspend fun getForecast(
-        @Query("q") location: String,
-        @Query("units") units: String = "metric",
-        @Query("cnt") count: Int = 8,
-        @Query("appid") apiKey: String
-    ): ForecastResponse
+        @Query("days") days: Int = 7,  // Изменено с 1 на 7
+        @Query("aqi") aqi: String = "no",
+        @Query("alerts") alerts: String = "no"
+    ): WeatherApiResponse
 }
 
 object RetrofitClient {

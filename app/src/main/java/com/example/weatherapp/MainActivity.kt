@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -45,12 +46,16 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
     val cities = listOf("London", "New York", "Tokyo", "Paris", "Moscow", "Berlin", "Sydney", "Nüremberg")
     var selectedCity by remember { mutableStateOf("London") }
     var expanded by remember { mutableStateOf(false) }
+
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val tabs = listOf("Today", "Weekly")
 
     // Add debounce mechanism to prevent too many rapid API calls
     var lastApiCallTime by remember { mutableStateOf(0L) }
@@ -118,199 +123,111 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
 
                 Column(
                     modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                    // City selector dropdown
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp, start = 16.dp, end = 16.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        item {
-                            // City selector dropdown
-                            Box(
+                        ExposedDropdownMenuBox(
+                            expanded = expanded,
+                            onExpandedChange = { expanded = !expanded },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    color = colorResource(id = R.color.purple),
+                                    shape = RoundedCornerShape(16.dp) // Changed from 8.dp
+                                )
+                        ) {
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(top = 16.dp, start = 16.dp, end = 16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                ExposedDropdownMenuBox(
-                                    expanded = expanded,
-                                    onExpandedChange = { expanded = !expanded },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(
-                                            color = colorResource(id = R.color.purple),
-                                            shape = RoundedCornerShape(8.dp)
-                                        )
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .menuAnchor()
-                                            .clickable { expanded = true }
-                                            .padding(16.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(
-                                                imageVector = Icons.Default.Search,
-                                                contentDescription = "Location",
-                                                tint = Color.White
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text(
-                                                text = selectedCity,
-                                                color = Color.White,
-                                                fontSize = 18.sp
-                                            )
-                                        }
-                                        Icon(
-                                            imageVector = if (expanded)
-                                                Icons.Default.KeyboardArrowUp
-                                            else
-                                                Icons.Default.KeyboardArrowDown,
-                                            contentDescription = "Toggle Dropdown",
-                                            tint = Color.White
-                                        )
-                                    }
-
-                                    ExposedDropdownMenu(
-                                        expanded = expanded,
-                                        onDismissRequest = { expanded = false },
-                                        modifier = Modifier.background(
-                                            colorResource(id = R.color.purple)
-                                        )
-                                    ) {
-                                        cities.forEach { city ->
-                                            DropdownMenuItem(
-                                                text = { Text(text = city, color = Color.White) },
-                                                onClick = {
-                                                    selectedCity = city
-                                                    expanded = false
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            Text(
-                                text = displayData.description,
-                                fontSize = 20.sp,
-                                color = Color.White,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 24.dp),
-                                textAlign = TextAlign.Center
-                            )
-
-                            val weatherIconId = when (displayData.weatherType) {
-                                "cloudy" -> R.drawable.cloudy
-                                "sunny" -> R.drawable.sunny
-                                "rainy" -> R.drawable.rain
-                                else -> R.drawable.cloudy_sunny
-                            }
-
-                            Image(
-                                painter = painterResource(id = weatherIconId),
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(150.dp)
-                                    .padding(top = 8.dp)
-                            )
-
-                            Text(
-                                text = "Today, ${getCurrentTime()}",
-                                fontSize = 19.sp,
-                                color = Color.White,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp),
-                                textAlign = TextAlign.Center
-                            )
-
-                            Text(
-                                text = "${displayData.temperature}°C",
-                                fontSize = 63.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp),
-                                textAlign = TextAlign.Center
-                            )
-
-                            Text(
-                                text = "H:${displayData.maxTemp}° L:${displayData.minTemp}°",
-                                fontSize = 16.sp,
-                                color = Color.White,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp),
-                                textAlign = TextAlign.Center
-                            )
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 24.dp, vertical = 16.dp)
-                                    .background(
-                                        color = colorResource(id = R.color.purple),
-                                        shape = RoundedCornerShape(25.dp)
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(100.dp)
-                                        .padding(horizontal = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceEvenly
-                                ) {
-                                    WeatherDetailItem(
-                                        icon = R.drawable.rain,
-                                        value = "30%",
-                                        label = "Rain"
-                                    )
-                                    WeatherDetailItem(
-                                        icon = R.drawable.wind,
-                                        value = "${displayData.windSpeed} m/s",
-                                        label = "Wind Speed"
-                                    )
-                                    WeatherDetailItem(
-                                        icon = R.drawable.humidity,
-                                        value = "${displayData.humidity}%",
-                                        label = "Humidity"
-                                    )
-                                }
-                            }
-
-                            Text(
-                                text = "Today's Weather",
-                                fontSize = 20.sp,
-                                color = Color.White,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 24.dp, vertical = 8.dp),
-                                textAlign = TextAlign.Center
-                            )
-                        }
-
-                        item {
-                            LazyRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                contentPadding = PaddingValues(horizontal = 20.dp),
-                                horizontalArrangement = Arrangement.Center,
+                                    .menuAnchor()
+                                    .clickable { expanded = true }
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                items(viewModel.forecastState) { item ->
-                                    FutureModelViewHolder(model = item)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = "Location",
+                                        tint = Color.White
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = selectedCity,
+                                        color = Color.White,
+                                        fontSize = 18.sp
+                                    )
+                                }
+                                Icon(
+                                    imageVector = if (expanded)
+                                        Icons.Default.KeyboardArrowUp
+                                    else
+                                        Icons.Default.KeyboardArrowDown,
+                                    contentDescription = "Toggle Dropdown",
+                                    tint = Color.White
+                                )
+                            }
+
+                            ExposedDropdownMenu(
+                                expanded = expanded,
+                                onDismissRequest = { expanded = false },
+                                modifier = Modifier.background(
+                                    colorResource(id = R.color.purple)
+                                )
+                            ) {
+                                cities.forEach { city ->
+                                    DropdownMenuItem(
+                                        text = { Text(text = city, color = Color.White) },
+                                        onClick = {
+                                            selectedCity = city
+                                            expanded = false
+                                        }
+                                    )
                                 }
                             }
                         }
+                    }
+
+                    // Add TabRow for switching between Today and Weekly views wrapped in Surface
+                    Surface(
+                        color = colorResource(id = R.color.purple),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        TabRow(
+                            selectedTabIndex = selectedTab,
+                            modifier = Modifier.fillMaxWidth(),
+                            containerColor = Color.Transparent, // Changed to transparent
+                            contentColor = Color.White,
+                            indicator = { tabPositions ->
+                                TabRowDefaults.Indicator(
+                                    modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                                    color = Color.White
+                                )
+                            }
+                        ) {
+                            tabs.forEachIndexed { index, title ->
+                                Tab(
+                                    selected = selectedTab == index,
+                                    onClick = { selectedTab = index },
+                                    text = { Text(text = title, color = Color.White) }
+                                )
+                            }
+                        }
+                    }
+
+                    // Display content based on selected tab
+                    when (selectedTab) {
+                        0 -> TodayWeatherContent(displayData, viewModel)
+                        1 -> WeeklyForecastContent(viewModel.weeklyForecastState)
                     }
                 }
             }
@@ -333,7 +250,7 @@ fun FutureModelViewHolder(model: HourlyModel) {
             .padding(4.dp)
             .background(
                 color = colorResource(id = R.color.purple),
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(16.dp) // Changed from 8.dp
             )
             .padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -400,5 +317,235 @@ fun WeatherDetailItem(icon: Int, value: String, label: String) {
             color = colorResource(id = R.color.white),
             textAlign = TextAlign.Center
         )
+    }
+}
+
+@Composable
+fun TodayWeatherContent(data: WeatherData, viewModel: WeatherViewModel) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Top
+    ) {
+        item {
+            Text(
+                text = data.description,
+                fontSize = 20.sp,
+                color = Color.White,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
+                textAlign = TextAlign.Center
+            )
+
+            val weatherIconId = when (data.weatherType) {
+                "cloudy" -> R.drawable.cloudy
+                "sunny" -> R.drawable.sunny
+                "rainy" -> R.drawable.rain
+                else -> R.drawable.cloudy_sunny
+            }
+
+            Image(
+                painter = painterResource(id = weatherIconId),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(130.dp)
+                    .padding(top = 8.dp)
+            )
+
+            Text(
+                text = "Today, ${getCurrentTime()}",
+                fontSize = 19.sp,
+                color = Color.White,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                textAlign = TextAlign.Center
+            )
+
+            Text(
+                text = "${data.temperature}°C",
+                fontSize = 60.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                textAlign = TextAlign.Center
+            )
+
+            Text(
+                text = "H:${data.maxTemp}° L:${data.minTemp}°",
+                fontSize = 16.sp,
+                color = Color.White,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                textAlign = TextAlign.Center
+            )
+
+            // Additional details
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
+                    .background(
+                        color = colorResource(id = R.color.purple),
+                        shape = RoundedCornerShape(16.dp) // Changed from 25.dp
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp)
+                        .padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    WeatherDetailItem(
+                        icon = R.drawable.rain,
+                        value = "30%",
+                        label = "Rain"
+                    )
+                    WeatherDetailItem(
+                        icon = R.drawable.wind,
+                        value = "${data.windSpeed} m/s",
+                        label = "Wind Speed"
+                    )
+                    WeatherDetailItem(
+                        icon = R.drawable.humidity,
+                        value = "${data.humidity}%",
+                        label = "Humidity"
+                    )
+                }
+            }
+
+            // Today's forecast by hours
+            Text(
+                text = "Today's Weather",
+                fontSize = 20.sp,
+                color = Color.White,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 8.dp),
+                textAlign = TextAlign.Center
+            )
+        }
+
+        item {
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                items(viewModel.forecastState) { item ->
+                    FutureModelViewHolder(model = item)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun WeeklyForecastContent(weeklyForecast: List<DailyForecast>) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        item {
+            Text(
+                text = "7-Day Forecast",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                textAlign = TextAlign.Center
+            )
+        }
+
+        items(weeklyForecast) { forecast ->
+            DailyForecastItem(forecast = forecast)
+        }
+    }
+}
+
+@Composable
+fun DailyForecastItem(forecast: DailyForecast) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = colorResource(id = R.color.purple)),
+        shape = RoundedCornerShape(16.dp) // Added this line
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Day
+            Text(
+                text = forecast.date,
+                color = Color.White,
+                fontSize = 16.sp,
+                modifier = Modifier.width(100.dp)
+            )
+
+            // Weather icon and description
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.weight(1f)
+            ) {
+                Image(
+                    painter = painterResource(
+                        id = when (forecast.weatherType) {
+                            "cloudy" -> R.drawable.cloudy
+                            "sunny" -> R.drawable.sunny
+                            "rainy" -> R.drawable.rain
+                            else -> R.drawable.cloudy_sunny
+                        }
+                    ),
+                    contentDescription = null,
+                    modifier = Modifier.size(40.dp)
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text(
+                    text = forecast.condition,
+                    color = Color.White,
+                    fontSize = 14.sp
+                )
+            }
+
+            // Temperatures
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End,
+                modifier = Modifier.width(80.dp)
+            ) {
+                Text(
+                    text = "${forecast.maxTemp}°",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text(
+                    text = "${forecast.minTemp}°",
+                    color = Color.LightGray,
+                    fontSize = 16.sp
+                )
+            }
+        }
     }
 }

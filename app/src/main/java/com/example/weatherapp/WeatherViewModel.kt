@@ -26,6 +26,9 @@ class WeatherViewModel : ViewModel() {
     var forecastState by mutableStateOf<List<HourlyModel>>(emptyList())
         private set
 
+    var weeklyForecastState by mutableStateOf<List<DailyForecast>>(emptyList())
+        private set
+
     init {
         getWeatherData("London")
     }
@@ -52,7 +55,7 @@ class WeatherViewModel : ViewModel() {
         suspend fun getForecastData(
             @Query("key") apiKey: String,
             @Query("q") location: String,
-            @Query("days") days: Int = 1,
+            @Query("days") days: Int = 7,  // Changed from 1 to 7
             @Query("aqi") aqi: String = "no",
             @Query("alerts") alerts: String = "no"
         ): WeatherApiResponse
@@ -93,6 +96,7 @@ class WeatherViewModel : ViewModel() {
 
                     // Извлекаем прогноз
                     createForecastFromApiResponse(weatherResponse)
+                    processWeeklyForecast(weatherResponse)
 
                 } catch (e: HttpException) {
                     weatherState = WeatherUiState.Error("API limit reached (${e.code()}). Try again later.")
@@ -103,6 +107,22 @@ class WeatherViewModel : ViewModel() {
                 weatherState = WeatherUiState.Error("Error: ${e.message}")
             }
         }
+    }
+
+    // Moved this method out of createForecastFromApiResponse where it was incorrectly nested
+    private fun processWeeklyForecast(response: WeatherApiResponse) {
+        val dailyForecasts = response.forecast.forecastday.drop(1).map { forecastDay ->
+            DailyForecast(
+                date = SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(
+                    SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(forecastDay.date) ?: Date()),
+                maxTemp = forecastDay.day.maxtemp_c.toInt(),
+                minTemp = forecastDay.day.mintemp_c.toInt(),
+                weatherType = getWeatherType(forecastDay.day.condition.code),
+                condition = forecastDay.day.condition.text
+            )
+        }
+
+        weeklyForecastState = dailyForecasts
     }
 
     private fun createForecastFromApiResponse(response: WeatherApiResponse) {
