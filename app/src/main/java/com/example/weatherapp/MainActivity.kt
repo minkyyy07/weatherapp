@@ -8,6 +8,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -31,6 +32,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.ui.graphics.toArgb
+import com.patrykandpatrick.vico.compose.axis.horizontal.bottomAxis
+import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
+import com.patrykandpatrick.vico.compose.axis.vertical.startAxis
+import com.patrykandpatrick.vico.compose.chart.column.columnChart
+import com.patrykandpatrick.vico.compose.component.shapeComponent
+import com.patrykandpatrick.vico.compose.legend.legendItem
+import com.patrykandpatrick.vico.compose.legend.verticalLegend
+import com.patrykandpatrick.vico.core.component.text.textComponent
+import com.patrykandpatrick.vico.core.entry.entryModelOf
+import com.patrykandpatrick.vico.core.marker.Marker
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -55,7 +67,7 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
     var expanded by remember { mutableStateOf(false) }
 
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Today", "Weekly")
+    val tabs = listOf("Today", "Weekly", "Charts")
 
     // Add debounce mechanism to prevent too many rapid API calls
     var lastApiCallTime by remember { mutableStateOf(0L) }
@@ -228,6 +240,7 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                     when (selectedTab) {
                         0 -> TodayWeatherContent(displayData, viewModel)
                         1 -> WeeklyForecastContent(viewModel.weeklyForecastState)
+                        2 -> WeatherChartsContent(displayData, viewModel)
                     }
                 }
             }
@@ -547,5 +560,185 @@ fun DailyForecastItem(forecast: DailyForecast) {
                 )
             }
         }
+    }
+}
+
+@Composable
+fun WeatherChartsContent(data: WeatherData, viewModel: WeatherViewModel) {
+    val hourlyData = viewModel.forecastState
+    val weeklyData = viewModel.weeklyForecastState
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        item {
+            Text(
+                text = "Weather Charts",
+                style = MaterialTheme.typography.titleLarge,
+                color = Color.White,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                textAlign = TextAlign.Center
+            )
+        }
+
+        item {
+            ChartCard(title = "Today's Temperature") {
+                HourlyTemperatureChart(hourlyData)
+            }
+        }
+
+        item {
+            ChartCard(title = "Weekly Temperature") {
+                WeeklyTemperatureChart(weeklyData)
+            }
+        }
+
+        item {
+            ChartCard(title = "Humidity and Wind") {
+                MetricsChart(hourlyData)
+            }
+        }
+
+        item {
+            ChartCard(title = "Precipitation") {
+                PrecipitationChart(hourlyData)
+            }
+        }
+    }
+}
+
+@Composable
+fun ChartCard(title: String, content: @Composable () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = colorResource(id = R.color.purple))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+            content()
+        }
+    }
+}
+
+@Composable
+fun HourlyTemperatureChart(hourlyData: List<HourlyModel>) {
+    if (hourlyData.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("No data to display", color = Color.White)
+        }
+        return
+    }
+
+    // Simple placeholder chart
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text("Temperature chart: ${hourlyData.map { "${it.hour}: ${it.temp}°" }.take(3).joinToString(", ")}...",
+            color = Color.White)
+    }
+}
+
+@Composable
+fun WeeklyTemperatureChart(weeklyData: List<DailyForecast>) {
+    if (weeklyData.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("No data to display", color = Color.White)
+        }
+        return
+    }
+
+    // Simple placeholder chart
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Weekly temperatures:", color = Color.White)
+            Spacer(modifier = Modifier.height(8.dp))
+            weeklyData.take(3).forEach { forecast ->
+                Text("${forecast.date}: ${forecast.maxTemp}°/${forecast.minTemp}°",
+                    color = Color.White)
+            }
+            if (weeklyData.size > 3) {
+                Text("...", color = Color.White)
+            }
+        }
+    }
+}
+
+@Composable
+fun MetricsChart(hourlyData: List<HourlyModel>) {
+    if (hourlyData.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("No data to display", color = Color.White)
+        }
+        return
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text("Weather metrics display (humidity and wind speed)",
+            color = Color.White, textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+fun PrecipitationChart(hourlyData: List<HourlyModel>) {
+    if (hourlyData.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("No data to display", color = Color.White)
+        }
+        return
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text("Precipitation chart", color = Color.White)
     }
 }
