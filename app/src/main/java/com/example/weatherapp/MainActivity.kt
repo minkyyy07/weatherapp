@@ -587,25 +587,25 @@ fun WeatherChartsContent(data: WeatherData, viewModel: WeatherViewModel) {
         }
 
         item {
-            ChartCard(title = "Today's Temperature") {
+            WeatherChartCard(title = "Today's Temperature") {
                 HourlyTemperatureChart(hourlyData)
             }
         }
 
         item {
-            ChartCard(title = "Weekly Temperature") {
+            WeatherChartCard(title = "Weekly Temperature") {
                 WeeklyTemperatureChart(weeklyData)
             }
         }
 
         item {
-            ChartCard(title = "Humidity and Wind") {
+            WeatherChartCard(title = "Humidity and Wind") {
                 MetricsChart(hourlyData)
             }
         }
 
         item {
-            ChartCard(title = "Precipitation") {
+            WeatherChartCard(title = "Precipitation") {
                 PrecipitationChart(hourlyData)
             }
         }
@@ -613,7 +613,7 @@ fun WeatherChartsContent(data: WeatherData, viewModel: WeatherViewModel) {
 }
 
 @Composable
-fun ChartCard(title: String, content: @Composable () -> Unit) {
+fun WeatherChartCard(title: String, content: @Composable () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -634,61 +634,83 @@ fun ChartCard(title: String, content: @Composable () -> Unit) {
 @Composable
 fun HourlyTemperatureChart(hourlyData: List<HourlyModel>) {
     if (hourlyData.isEmpty()) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("No data to display", color = Color.White)
-        }
+        EmptyChartMessage()
         return
     }
 
-    // Simple placeholder chart
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(200.dp),
-        contentAlignment = Alignment.Center
+            .height(200.dp)
+            .padding(8.dp),
+        verticalArrangement = Arrangement.Center
     ) {
-        Text("Temperature chart: ${hourlyData.map { "${it.hour}: ${it.temp}°" }.take(3).joinToString(", ")}...",
-            color = Color.White)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom
+        ) {
+            hourlyData.take(8).forEach { hourData ->
+                TemperatureBar(
+                    temp = hourData.temp,
+                    max = hourlyData.maxOf { it.temp } + 5,
+                    label = hourData.hour
+                )
+            }
+        }
     }
 }
 
 @Composable
 fun WeeklyTemperatureChart(weeklyData: List<DailyForecast>) {
     if (weeklyData.isEmpty()) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("No data to display", color = Color.White)
-        }
+        EmptyChartMessage()
         return
     }
 
-    // Simple placeholder chart
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(200.dp),
-        contentAlignment = Alignment.Center
+            .height(200.dp)
+            .padding(8.dp),
+        verticalArrangement = Arrangement.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
+        // Chart legend
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.End
         ) {
-            Text("Weekly temperatures:", color = Color.White)
-            Spacer(modifier = Modifier.height(8.dp))
-            weeklyData.take(3).forEach { forecast ->
-                Text("${forecast.date}: ${forecast.maxTemp}°/${forecast.minTemp}°",
-                    color = Color.White)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.size(10.dp).background(Color(0xFFF06292)))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Max", color = Color.White, fontSize = 12.sp)
             }
-            if (weeklyData.size > 3) {
-                Text("...", color = Color.White)
+            Spacer(modifier = Modifier.width(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.size(10.dp).background(Color(0xFF64B5F6)))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Min", color = Color.White, fontSize = 12.sp)
+            }
+        }
+
+        // Chart bars
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom
+        ) {
+            weeklyData.take(7).forEach { forecast ->
+                TemperatureRange(
+                    min = forecast.minTemp,
+                    max = forecast.maxTemp,
+                    label = forecast.date.take(3)
+                )
             }
         }
     }
@@ -697,48 +719,141 @@ fun WeeklyTemperatureChart(weeklyData: List<DailyForecast>) {
 @Composable
 fun MetricsChart(hourlyData: List<HourlyModel>) {
     if (hourlyData.isEmpty()) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("No data to display", color = Color.White)
-        }
+        EmptyChartMessage()
         return
     }
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(200.dp),
-        contentAlignment = Alignment.Center
+            .height(200.dp)
+            .padding(8.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Weather metrics display (humidity and wind speed)",
-            color = Color.White, textAlign = TextAlign.Center)
+        Text(
+            "Wind & Humidity Chart",
+            color = Color.White,
+            fontSize = 14.sp,
+            modifier = Modifier.padding(vertical = 16.dp)
+        )
+
+        Text(
+            "Still in development | discord - .paveldurov.\n",
+            color = Color.White,
+            fontSize = 12.sp,
+            textAlign = TextAlign.Center
+        )
     }
 }
 
 @Composable
 fun PrecipitationChart(hourlyData: List<HourlyModel>) {
     if (hourlyData.isEmpty()) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("No data to display", color = Color.White)
-        }
+        EmptyChartMessage()
         return
     }
 
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp)
+            .padding(8.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            "Precipitation Chart",
+            color = Color.White,
+            fontSize = 14.sp,
+            modifier = Modifier.padding(vertical = 16.dp)
+        )
+
+        Text(
+            "Still in development | discord - .paveldurov.\n",
+            color = Color.White,
+            fontSize = 12.sp,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+@Composable
+fun EmptyChartMessage() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(200.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text("Precipitation chart", color = Color.White)
+        Text("No data to display", color = Color.White)
+    }
+}
+
+@Composable
+fun TemperatureBar(temp: Int, max: Int, label: String) {
+    val heightPercentage = (temp.toFloat() / max).coerceIn(0.1f, 1f)
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.padding(horizontal = 4.dp)
+    ) {
+        Text(
+            text = "$temp°",
+            color = Color.White,
+            fontSize = 12.sp
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Box(
+            modifier = Modifier
+                .width(24.dp)
+                .height(120.dp * heightPercentage)
+                .background(Color(0xFFF06292), RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = label,
+            color = Color.White,
+            fontSize = 10.sp
+        )
+    }
+}
+
+@Composable
+fun TemperatureRange(min: Int, max: Int, label: String) {
+    val totalRange = 45 // Assumed temperature range
+    val minHeight = (min.toFloat() / totalRange).coerceIn(0.1f, 0.8f)
+    val maxHeight = (max.toFloat() / totalRange).coerceIn(0.2f, 1f)
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.padding(horizontal = 4.dp)
+    ) {
+        Text(
+            text = "$max°",
+            color = Color.White,
+            fontSize = 10.sp
+        )
+        Box(
+            modifier = Modifier
+                .width(12.dp)
+                .height(100.dp * maxHeight)
+                .background(Color(0xFFF06292), RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+        )
+        Box(
+            modifier = Modifier
+                .width(12.dp)
+                .height(100.dp * minHeight)
+                .background(Color(0xFF64B5F6), RoundedCornerShape(bottomStart = 4.dp, bottomEnd = 4.dp))
+        )
+        Text(
+            text = "$min°",
+            color = Color.White,
+            fontSize = 10.sp
+        )
+        Text(
+            text = label,
+            color = Color.White,
+            fontSize = 10.sp
+        )
     }
 }
