@@ -62,9 +62,25 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
-    val cities = listOf("London", "New York", "Tokyo", "Paris", "Moscow", "Berlin", "Sydney", "Nüremberg")
+    val countries = listOf("United Kingdom", "USA", "Japan", "France", "Russia", "Germany", "Australia", "Ukraine")
+    var selectedCountry by remember { mutableStateOf("United Kingdom") }
     var selectedCity by remember { mutableStateOf("London") }
-    var expanded by remember { mutableStateOf(false) }
+    var expandedCountry by remember { mutableStateOf(false) }
+    var expandedCity by remember { mutableStateOf(false) }
+
+    // Map of countries to their cities
+    val citiesByCountry = remember {
+        mapOf(
+            "United Kingdom" to listOf("London", "Manchester", "Liverpool"),
+            "USA" to listOf("New York", "Los Angeles", "Chicago"),
+            "Japan" to listOf("Tokyo", "Osaka", "Kyoto"),
+            "France" to listOf("Paris", "Lyon", "Marseille"),
+            "Russia" to listOf("Moscow", "Saint Petersburg", "Kazan"),
+            "Germany" to listOf("Berlin", "Munich", "Nüremberg"),
+            "Australia" to listOf("Sydney", "Melbourne", "Brisbane"),
+            "Ukraine" to listOf("Kyiv", "Irpin", "Odesa")  // Added Ukrainian cities
+        )
+    }
 
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Today", "Weekly", "Charts")
@@ -137,7 +153,7 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                     modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // City selector dropdown
+                    // Country selector
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -145,20 +161,20 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                         contentAlignment = Alignment.Center
                     ) {
                         ExposedDropdownMenuBox(
-                            expanded = expanded,
-                            onExpandedChange = { expanded = !expanded },
+                            expanded = expandedCountry,
+                            onExpandedChange = { expandedCountry = !expandedCountry },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .background(
                                     color = colorResource(id = R.color.purple),
-                                    shape = RoundedCornerShape(16.dp) // Changed from 8.dp
+                                    shape = RoundedCornerShape(16.dp)
                                 )
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .menuAnchor()
-                                    .clickable { expanded = true }
+                                    .clickable { expandedCountry = true }
                                     .padding(16.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
@@ -166,7 +182,80 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
                                         imageVector = Icons.Default.Search,
-                                        contentDescription = "Location",
+                                        contentDescription = "Country",
+                                        tint = Color.White
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = selectedCountry,
+                                        color = Color.White,
+                                        fontSize = 18.sp
+                                    )
+                                }
+                                Icon(
+                                    imageVector = if (expandedCountry)
+                                        Icons.Default.KeyboardArrowUp
+                                    else
+                                        Icons.Default.KeyboardArrowDown,
+                                    contentDescription = "Toggle Country Dropdown",
+                                    tint = Color.White
+                                )
+                            }
+
+                            ExposedDropdownMenu(
+                                expanded = expandedCountry,
+                                onDismissRequest = { expandedCountry = false },
+                                modifier = Modifier.background(
+                                    colorResource(id = R.color.purple)
+                                )
+                            ) {
+                                countries.forEach { country ->
+                                    DropdownMenuItem(
+                                        text = { Text(text = country, color = Color.White) },
+                                        onClick = {
+                                            selectedCountry = country
+                                            // Select the first city from the new country
+                                            citiesByCountry[country]?.firstOrNull()?.let {
+                                                selectedCity = it
+                                            }
+                                            expandedCountry = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // City selector based on selected country
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp, start = 16.dp, end = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ExposedDropdownMenuBox(
+                            expanded = expandedCity,
+                            onExpandedChange = { expandedCity = !expandedCity },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    color = colorResource(id = R.color.purple),
+                                    shape = RoundedCornerShape(16.dp)
+                                )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .menuAnchor()
+                                    .clickable { expandedCity = true }
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = "City",
                                         tint = Color.White
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -177,28 +266,28 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                                     )
                                 }
                                 Icon(
-                                    imageVector = if (expanded)
+                                    imageVector = if (expandedCity)
                                         Icons.Default.KeyboardArrowUp
                                     else
                                         Icons.Default.KeyboardArrowDown,
-                                    contentDescription = "Toggle Dropdown",
+                                    contentDescription = "Toggle City Dropdown",
                                     tint = Color.White
                                 )
                             }
 
                             ExposedDropdownMenu(
-                                expanded = expanded,
-                                onDismissRequest = { expanded = false },
+                                expanded = expandedCity,
+                                onDismissRequest = { expandedCity = false },
                                 modifier = Modifier.background(
                                     colorResource(id = R.color.purple)
                                 )
                             ) {
-                                cities.forEach { city ->
+                                citiesByCountry[selectedCountry]?.forEach { city ->
                                     DropdownMenuItem(
                                         text = { Text(text = city, color = Color.White) },
                                         onClick = {
                                             selectedCity = city
-                                            expanded = false
+                                            expandedCity = false
                                         }
                                     )
                                 }
@@ -206,7 +295,7 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                         }
                     }
 
-                    // Add TabRow for switching between Today and Weekly views wrapped in Surface
+                    // Tab Row for switching between views
                     Surface(
                         color = colorResource(id = R.color.purple),
                         shape = RoundedCornerShape(16.dp),
@@ -217,7 +306,7 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                         TabRow(
                             selectedTabIndex = selectedTab,
                             modifier = Modifier.fillMaxWidth(),
-                            containerColor = Color.Transparent, // Changed to transparent
+                            containerColor = Color.Transparent,
                             contentColor = Color.White,
                             indicator = { tabPositions ->
                                 TabRowDefaults.Indicator(
