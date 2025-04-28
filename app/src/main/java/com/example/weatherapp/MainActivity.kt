@@ -8,14 +8,17 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,15 +27,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
-import androidx.compose.ui.graphics.toArgb
 import com.patrykandpatrick.vico.compose.axis.horizontal.bottomAxis
 import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.axis.vertical.startAxis
@@ -58,7 +62,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
@@ -67,6 +70,27 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
     var selectedCity by remember { mutableStateOf("London") }
     var expandedCountry by remember { mutableStateOf(false) }
     var expandedCity by remember { mutableStateOf(false) }
+
+    // Language selection
+    val languages = listOf("English", "Русский", "Українська")
+    var selectedLanguage by remember { mutableStateOf("English") }
+    var expandedLanguage by remember { mutableStateOf(false) }
+
+    // Context for changing locale
+    val context = LocalContext.current
+
+    // Update locale when language changes
+    LaunchedEffect(selectedLanguage) {
+        val locale = when(selectedLanguage) {
+            "English" -> Locale("en")
+            "Русский" -> Locale("ru")
+            "Українська" -> Locale("uk")
+            else -> Locale.getDefault()
+        }
+        val configuration = context.resources.configuration
+        configuration.setLocale(locale)
+        context.createConfigurationContext(configuration)
+    }
 
     // Map of countries to their cities
     val citiesByCountry = remember {
@@ -78,7 +102,7 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
             "Russia" to listOf("Moscow", "Saint Petersburg", "Kazan"),
             "Germany" to listOf("Berlin", "Munich", "Nüremberg"),
             "Australia" to listOf("Sydney", "Melbourne", "Brisbane"),
-            "Ukraine" to listOf("Kyiv", "Irpin", "Odesa")  // Added Ukrainian cities
+            "Ukraine" to listOf("Kyiv", "Irpin", "Odesa")
         )
     }
 
@@ -126,7 +150,7 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "Error: ${state.message}",
+                        text = "Error: " + state.message,
                         color = Color.White,
                         fontSize = 18.sp,
                         textAlign = TextAlign.Center
@@ -153,7 +177,7 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                     modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Country selector
+                    // Language selector
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -161,35 +185,94 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                         contentAlignment = Alignment.Center
                     ) {
                         ExposedDropdownMenuBox(
-                            expanded = expandedCountry,
-                            onExpandedChange = { expandedCountry = !expandedCountry },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    color = colorResource(id = R.color.purple),
-                                    shape = RoundedCornerShape(16.dp)
-                                )
+                            expanded = expandedLanguage,
+                            onExpandedChange = { expandedLanguage = !expandedLanguage }
                         ) {
                             Row(
                                 modifier = Modifier
-                                    .fillMaxWidth()
                                     .menuAnchor()
-                                    .clickable { expandedCountry = true }
+                                    .fillMaxWidth()
+                                    .background(
+                                        color = colorResource(id = R.color.purple),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
                                     .padding(16.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
-                                        imageVector = Icons.Default.Search,
+                                        imageVector = Icons.Default.Settings, // Instead of Language
+                                        contentDescription = "Language",
+                                        tint = Color.White
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = selectedLanguage,
+                                        color = Color.White
+                                    )
+                                }
+                                Icon(
+                                    imageVector = if (expandedLanguage)
+                                        Icons.Default.KeyboardArrowUp
+                                    else
+                                        Icons.Default.KeyboardArrowDown,
+                                    contentDescription = "Arrow",
+                                    tint = Color.White
+                                )
+                            }
+
+                            ExposedDropdownMenu(
+                                expanded = expandedLanguage,
+                                onDismissRequest = { expandedLanguage = false },
+                                modifier = Modifier.background(colorResource(id = R.color.purple))
+                            ) {
+                                languages.forEach { language ->
+                                    DropdownMenuItem(
+                                        text = { Text(language, color = Color.White) },
+                                        onClick = {
+                                            selectedLanguage = language
+                                            expandedLanguage = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Country selector
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp, start = 16.dp, end = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ExposedDropdownMenuBox(
+                            expanded = expandedCountry,
+                            onExpandedChange = { expandedCountry = !expandedCountry }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .menuAnchor()
+                                    .fillMaxWidth()
+                                    .background(
+                                        color = colorResource(id = R.color.purple),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Info, // Instead of Public
                                         contentDescription = "Country",
                                         tint = Color.White
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = selectedCountry,
-                                        color = Color.White,
-                                        fontSize = 18.sp
+                                        color = Color.White
                                     )
                                 }
                                 Icon(
@@ -197,7 +280,7 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                                         Icons.Default.KeyboardArrowUp
                                     else
                                         Icons.Default.KeyboardArrowDown,
-                                    contentDescription = "Toggle Country Dropdown",
+                                    contentDescription = "Arrow",
                                     tint = Color.White
                                 )
                             }
@@ -205,19 +288,14 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                             ExposedDropdownMenu(
                                 expanded = expandedCountry,
                                 onDismissRequest = { expandedCountry = false },
-                                modifier = Modifier.background(
-                                    colorResource(id = R.color.purple)
-                                )
+                                modifier = Modifier.background(colorResource(id = R.color.purple))
                             ) {
                                 countries.forEach { country ->
                                     DropdownMenuItem(
-                                        text = { Text(text = country, color = Color.White) },
+                                        text = { Text(country, color = Color.White) },
                                         onClick = {
                                             selectedCountry = country
-                                            // Select the first city from the new country
-                                            citiesByCountry[country]?.firstOrNull()?.let {
-                                                selectedCity = it
-                                            }
+                                            selectedCity = citiesByCountry[country]?.first() ?: ""
                                             expandedCountry = false
                                         }
                                     )
@@ -226,7 +304,7 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                         }
                     }
 
-                    // City selector based on selected country
+                    // City selector
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -235,34 +313,30 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                     ) {
                         ExposedDropdownMenuBox(
                             expanded = expandedCity,
-                            onExpandedChange = { expandedCity = !expandedCity },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    color = colorResource(id = R.color.purple),
-                                    shape = RoundedCornerShape(16.dp)
-                                )
+                            onExpandedChange = { expandedCity = !expandedCity }
                         ) {
                             Row(
                                 modifier = Modifier
-                                    .fillMaxWidth()
                                     .menuAnchor()
-                                    .clickable { expandedCity = true }
+                                    .fillMaxWidth()
+                                    .background(
+                                        color = colorResource(id = R.color.purple),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
                                     .padding(16.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
-                                        imageVector = Icons.Default.Search,
+                                        imageVector = Icons.Default.Place, // Instead of LocationCity
                                         contentDescription = "City",
                                         tint = Color.White
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = selectedCity,
-                                        color = Color.White,
-                                        fontSize = 18.sp
+                                        color = Color.White
                                     )
                                 }
                                 Icon(
@@ -270,7 +344,7 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                                         Icons.Default.KeyboardArrowUp
                                     else
                                         Icons.Default.KeyboardArrowDown,
-                                    contentDescription = "Toggle City Dropdown",
+                                    contentDescription = "Arrow",
                                     tint = Color.White
                                 )
                             }
@@ -278,13 +352,11 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                             ExposedDropdownMenu(
                                 expanded = expandedCity,
                                 onDismissRequest = { expandedCity = false },
-                                modifier = Modifier.background(
-                                    colorResource(id = R.color.purple)
-                                )
+                                modifier = Modifier.background(colorResource(id = R.color.purple))
                             ) {
                                 citiesByCountry[selectedCountry]?.forEach { city ->
                                     DropdownMenuItem(
-                                        text = { Text(text = city, color = Color.White) },
+                                        text = { Text(city, color = Color.White) },
                                         onClick = {
                                             selectedCity = city
                                             expandedCity = false
@@ -309,8 +381,8 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                             containerColor = Color.Transparent,
                             contentColor = Color.White,
                             indicator = { tabPositions ->
-                                TabRowDefaults.Indicator(
-                                    modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                                TabRowDefaults.SecondaryIndicator(
+                                    Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
                                     color = Color.White
                                 )
                             }
@@ -319,7 +391,7 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                                 Tab(
                                     selected = selectedTab == index,
                                     onClick = { selectedTab = index },
-                                    text = { Text(text = title, color = Color.White) }
+                                    text = { Text(title) }
                                 )
                             }
                         }
@@ -493,32 +565,30 @@ fun TodayWeatherContent(data: WeatherData, viewModel: WeatherViewModel) {
                     .padding(horizontal = 24.dp, vertical = 16.dp)
                     .background(
                         color = colorResource(id = R.color.purple),
-                        shape = RoundedCornerShape(16.dp) // Changed from 25.dp
+                        shape = RoundedCornerShape(16.dp)
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(100.dp)
-                        .padding(horizontal = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.SpaceAround
                 ) {
-                    WeatherDetailItem(
-                        icon = R.drawable.rain,
-                        value = "30%",
-                        label = "Rain"
-                    )
-                    WeatherDetailItem(
-                        icon = R.drawable.wind,
-                        value = "${data.windSpeed} m/s",
-                        label = "Wind Speed"
-                    )
                     WeatherDetailItem(
                         icon = R.drawable.humidity,
                         value = "${data.humidity}%",
                         label = "Humidity"
+                    )
+                    WeatherDetailItem(
+                        icon = R.drawable.wind,
+                        value = "${data.windSpeed} m/s",
+                        label = "Wind"
+                    )
+                    WeatherDetailItem(
+                        icon = R.drawable.rain,
+                        value = "${String.format("%.1f", data.precipitation)} mm",
+                        label = "Rain"
                     )
                 }
             }
@@ -582,7 +652,7 @@ fun DailyForecastItem(forecast: DailyForecast) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = colorResource(id = R.color.purple)),
-        shape = RoundedCornerShape(16.dp) // Added this line
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(
             modifier = Modifier
@@ -610,8 +680,10 @@ fun DailyForecastItem(forecast: DailyForecast) {
                         id = when (forecast.weatherType) {
                             "cloudy" -> R.drawable.cloudy
                             "sunny" -> R.drawable.sunny
+                            "wind" -> R.drawable.wind
                             "rainy" -> R.drawable.rain
-                            else -> R.drawable.cloudy_sunny
+                            "cloudy_sunny" -> R.drawable.cloudy
+                            else -> R.drawable.sunny
                         }
                     ),
                     contentDescription = null,
@@ -763,43 +835,113 @@ fun WeeklyTemperatureChart(weeklyData: List<DailyForecast>) {
         modifier = Modifier
             .fillMaxWidth()
             .height(200.dp)
-            .padding(8.dp),
+            .padding(4.dp),
         verticalArrangement = Arrangement.Center
     ) {
-        // Chart legend
+        // Legend
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 8.dp),
+                .padding(bottom = 2.dp),
             horizontalArrangement = Arrangement.End
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.size(10.dp).background(Color(0xFFF06292)))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Max", color = Color.White, fontSize = 12.sp)
+                Box(modifier = Modifier.size(8.dp).background(Color(0xFFF06292)))
+                Spacer(modifier = Modifier.width(2.dp))
+                Text("Max", color = Color.White, fontSize = 10.sp)
             }
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.size(10.dp).background(Color(0xFF64B5F6)))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Min", color = Color.White, fontSize = 12.sp)
+                Box(modifier = Modifier.size(8.dp).background(Color(0xFF64B5F6)))
+                Spacer(modifier = Modifier.width(2.dp))
+                Text("Min", color = Color.White, fontSize = 10.sp)
             }
         }
 
-        // Chart bars
-        Row(
+        // Find min/max values
+        val maxTemp = weeklyData.maxOf { it.maxTemp }
+        val minTemp = weeklyData.minOf { it.minTemp }
+
+        // Use a minimum range of 10°C to prevent excessive scaling
+        val minRange = 10
+        val actualRange = (maxTemp - minTemp).coerceAtLeast(1)
+        val range = maxOf(actualRange, minRange)
+
+        // Create visual midpoint for better appearance
+        val visualMinTemp = minTemp - ((range - actualRange) / 2)
+
+        // Available height for bars
+        val maxBarHeight = 100.dp
+
+        // Chart container
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Bottom
+                .height(160.dp)
+                .padding(vertical = 4.dp)
         ) {
-            weeklyData.take(7).forEach { forecast ->
-                TemperatureRange(
-                    min = forecast.minTemp,
-                    max = forecast.maxTemp,
-                    label = forecast.date.take(3)
-                )
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                weeklyData.take(7).forEach { forecast ->
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Bottom
+                    ) {
+                        Text(
+                            text = "${forecast.maxTemp}°",
+                            color = Color.White,
+                            fontSize = 9.sp,
+                            modifier = Modifier.padding(bottom = 1.dp)
+                        )
+
+                        // Max temp bar with less sensitive scaling
+                        val maxBarHeightPercentage = ((forecast.maxTemp - visualMinTemp).toFloat() / range)
+                            .coerceIn(0.05f, 1f) // Minimum size to ensure visibility
+
+                        Box(
+                            modifier = Modifier
+                                .width(9.dp)
+                                .height(maxBarHeight * maxBarHeightPercentage)
+                                .background(
+                                    Color(0xFFF06292),
+                                    shape = RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp)
+                                )
+                        )
+
+                        Spacer(modifier = Modifier.height(2.dp))
+
+                        // Min temp bar with less sensitive scaling
+                        val minBarHeightPercentage = ((forecast.minTemp - visualMinTemp).toFloat() / range)
+                            .coerceIn(0.05f, 1f) // Minimum size to ensure visibility
+
+                        Box(
+                            modifier = Modifier
+                                .width(9.dp)
+                                .height(maxBarHeight * minBarHeightPercentage)
+                                .background(
+                                    Color(0xFF64B5F6),
+                                    shape = RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp)
+                                )
+                        )
+
+                        Text(
+                            text = "${forecast.minTemp}°",
+                            color = Color.White,
+                            fontSize = 9.sp,
+                            modifier = Modifier.padding(top = 1.dp)
+                        )
+
+                        Text(
+                            text = forecast.date.take(3),
+                            color = Color.White,
+                            fontSize = 9.sp,
+                            modifier = Modifier.padding(top = 1.dp)
+                        )
+                    }
+                }
             }
         }
     }
@@ -828,7 +970,7 @@ fun MetricsChart(hourlyData: List<HourlyModel>) {
         )
 
         Text(
-            "Still in development | discord - .paveldurov.\n",
+            "Still in development | discord - .paveldurov.",
             color = Color.White,
             fontSize = 12.sp,
             textAlign = TextAlign.Center
@@ -859,28 +1001,33 @@ fun PrecipitationChart(hourlyData: List<HourlyModel>) {
         )
 
         Text(
-            "Still in development | discord - .paveldurov.\n",
+            "Still in development | discord - .paveldurov.",
             color = Color.White,
             fontSize = 12.sp,
             textAlign = TextAlign.Center
         )
     }
 }
+
 @Composable
 fun EmptyChartMessage() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(200.dp),
+            .height(100.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text("No data to display", color = Color.White)
+        Text(
+            "No data to display",
+            color = Color.White,
+            fontSize = 16.sp
+        )
     }
 }
 
 @Composable
 fun TemperatureBar(temp: Int, max: Int, label: String) {
-    val heightPercentage = (temp.toFloat() / max).coerceIn(0.1f, 1f)
+    val heightPercent = if (max > 0) (temp.toFloat() / max) else 0f
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -889,29 +1036,37 @@ fun TemperatureBar(temp: Int, max: Int, label: String) {
         Text(
             text = "$temp°",
             color = Color.White,
-            fontSize = 12.sp
+            fontSize = 12.sp,
+            modifier = Modifier.padding(bottom = 4.dp)
         )
-        Spacer(modifier = Modifier.height(4.dp))
+
         Box(
             modifier = Modifier
                 .width(24.dp)
-                .height(120.dp * heightPercentage)
-                .background(Color(0xFFF06292), RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                .height(120.dp * heightPercent)
+                .background(
+                    Color(0xFF64B5F6),
+                    shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
+                )
         )
-        Spacer(modifier = Modifier.height(4.dp))
+
         Text(
             text = label,
             color = Color.White,
-            fontSize = 10.sp
+            fontSize = 12.sp,
+            modifier = Modifier.padding(top = 4.dp)
         )
     }
 }
 
 @Composable
 fun TemperatureRange(min: Int, max: Int, label: String) {
-    val totalRange = 45 // Assumed temperature range
-    val minHeight = (min.toFloat() / totalRange).coerceIn(0.1f, 0.8f)
-    val maxHeight = (max.toFloat() / totalRange).coerceIn(0.2f, 1f)
+    val maxTemp = 40 // Assuming max possible temperature
+    val minTemp = -10 // Assuming min possible temperature
+    val range = maxTemp - minTemp
+
+    val maxHeightPercent = (max - minTemp).toFloat() / range
+    val minHeightPercent = (min - minTemp).toFloat() / range
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -920,29 +1075,32 @@ fun TemperatureRange(min: Int, max: Int, label: String) {
         Text(
             text = "$max°",
             color = Color.White,
-            fontSize = 10.sp
+            fontSize = 12.sp,
+            modifier = Modifier.padding(bottom = 4.dp)
         )
+
         Box(
             modifier = Modifier
-                .width(12.dp)
-                .height(100.dp * maxHeight)
-                .background(Color(0xFFF06292), RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                .width(24.dp)
+                .height(120.dp * (maxHeightPercent - minHeightPercent))
+                .background(
+                    Color(0xFFF06292),
+                    shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
+                )
         )
-        Box(
-            modifier = Modifier
-                .width(12.dp)
-                .height(100.dp * minHeight)
-                .background(Color(0xFF64B5F6), RoundedCornerShape(bottomStart = 4.dp, bottomEnd = 4.dp))
-        )
+
         Text(
             text = "$min°",
             color = Color.White,
-            fontSize = 10.sp
+            fontSize = 12.sp,
+            modifier = Modifier.padding(top = 4.dp)
         )
+
         Text(
             text = label,
             color = Color.White,
-            fontSize = 10.sp
+            fontSize = 12.sp,
+            modifier = Modifier.padding(top = 2.dp)
         )
     }
 }

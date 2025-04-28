@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">Погода</string>
+    <string name="tab_today">Сегодня</string>
+    <string name="tab_weekly">На неделю</string>
+    <string name="tab_charts">Графики</string>
+    <string name="error_prefix">Ошибка: </string>
+    <string name="retry">Повторить</string>
+    <string name="no_data">Нет данных для отображения</string>
+    <string name="weather_charts">Графики погоды</string>
+    <string name="today_temperature">Температура сегодня</string>
+    <string name="weekly_temperature">Температура на неделю</string>
+    <string name="humidity_wind">Влажность и ветер</string>
+    <string name="precipitation">Осадки</string>
+    <string name="development_message">В разработке | discord - .paveldurov.</string>
+</resources>

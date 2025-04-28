@@ -1,3 +1,15 @@
 <resources>
-    <string name="app_name">weather app</string>
+    <string name="app_name">Weather App</string>
+    <string name="tab_today">Today</string>
+    <string name="tab_weekly">Weekly</string>
+    <string name="tab_charts">Charts</string>
+    <string name="error_prefix">Error: </string>
+    <string name="retry">Retry</string>
+    <string name="no_data">No data to display</string>
+    <string name="weather_charts">Weather Charts</string>
+    <string name="today_temperature">Today\'s Temperature</string>
+    <string name="weekly_temperature">Weekly Temperature</string>
+    <string name="humidity_wind">Humidity and Wind</string>
+    <string name="precipitation">Precipitation</string>
+    <string name="development_message">Still in development | discord - .paveldurov.</string>
 </resources>

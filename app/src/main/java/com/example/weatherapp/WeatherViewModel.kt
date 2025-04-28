@@ -1,5 +1,6 @@
 package com.example.weatherapp
 
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -17,8 +18,9 @@ import java.util.Date
 import java.util.Locale
 
 class WeatherViewModel : ViewModel() {
-    // Замените на ваш ключ API от WeatherAPI.com
+    // API key from WeatherAPI.com
     private val apiKey = "053fafa63bb949d3ab4210023252404"
+    private val TAG = "WeatherViewModel"
 
     var weatherState by mutableStateOf<WeatherUiState>(WeatherUiState.Loading)
         private set
@@ -33,7 +35,7 @@ class WeatherViewModel : ViewModel() {
         getWeatherData("London")
     }
 
-    // Обновленный RetrofitClient для WeatherAPI.com
+    // RetrofitClient for WeatherAPI.com
     object RetrofitClient {
         private const val BASE_URL = "https://api.weatherapi.com/v1/"
 
@@ -49,13 +51,13 @@ class WeatherViewModel : ViewModel() {
         }
     }
 
-    // Новый интерфейс для WeatherAPI
+    // Interface for WeatherAPI
     interface WeatherApiService {
         @GET("forecast.json")
         suspend fun getForecastData(
             @Query("key") apiKey: String,
             @Query("q") location: String,
-            @Query("days") days: Int = 7,  // Changed from 1 to 7
+            @Query("days") days: Int = 7,
             @Query("aqi") aqi: String = "no",
             @Query("alerts") alerts: String = "no"
         ): WeatherApiResponse
@@ -66,7 +68,7 @@ class WeatherViewModel : ViewModel() {
             weatherState = WeatherUiState.Loading
 
             try {
-                // Map any special characters for API compatibility
+                // Map special characters for API compatibility
                 val apiCity = when (city.lowercase()) {
                     "nüremberg" -> "nuremberg"
                     else -> city
@@ -80,36 +82,45 @@ class WeatherViewModel : ViewModel() {
 
                     val current = weatherResponse.current
                     val location = weatherResponse.location
+                    val forecastDay = weatherResponse.forecast.forecastday.firstOrNull()?.day
+
+                    // Log precipitation values to diagnose the issue
+                    Log.d(TAG, "Current precipitation (precip_mm): ${current.precip_mm}")
+                    Log.d(TAG, "Total daily precipitation (totalprecip_mm): ${forecastDay?.totalprecip_mm}")
 
                     val weatherData = WeatherData(
                         temperature = current.temp_c.toInt(),
                         description = current.condition.text.capitalize(),
-                        minTemp = weatherResponse.forecast.forecastday.firstOrNull()?.day?.mintemp_c?.toInt() ?: 0,
-                        maxTemp = weatherResponse.forecast.forecastday.firstOrNull()?.day?.maxtemp_c?.toInt() ?: 0,
+                        minTemp = forecastDay?.mintemp_c?.toInt() ?: 0,
+                        maxTemp = forecastDay?.maxtemp_c?.toInt() ?: 0,
                         humidity = current.humidity,
-                        windSpeed = current.wind_kph / 3.6f, // конвертируем км/ч в м/с
+                        windSpeed = current.wind_kph / 3.6f,
                         cityName = if (city.equals("Nüremberg", ignoreCase = true)) "Nüremberg" else location.name,
-                        weatherType = getWeatherType(current.condition.code)
+                        weatherType = getWeatherType(current.condition.code),
+                        precipitation = forecastDay?.totalprecip_mm ?: 0f
                     )
 
+                    Log.d(TAG, "Final precipitation value: ${weatherData.precipitation}")
                     weatherState = WeatherUiState.Success(weatherData)
 
-                    // Извлекаем прогноз
+                    // Extract forecast
                     createForecastFromApiResponse(weatherResponse)
                     processWeeklyForecast(weatherResponse)
 
                 } catch (e: HttpException) {
                     weatherState = WeatherUiState.Error("API limit reached (${e.code()}). Try again later.")
+                    Log.e(TAG, "HTTP Exception: ${e.message()}")
                 } catch (e: Exception) {
                     weatherState = WeatherUiState.Error("Network error: ${e.message}")
+                    Log.e(TAG, "Network error", e)
                 }
             } catch (e: Exception) {
                 weatherState = WeatherUiState.Error("Error: ${e.message}")
+                Log.e(TAG, "General error", e)
             }
         }
     }
 
-    // Moved this method out of createForecastFromApiResponse where it was incorrectly nested
     private fun processWeeklyForecast(response: WeatherApiResponse) {
         val dailyForecasts = response.forecast.forecastday.drop(1).map { forecastDay ->
             DailyForecast(
@@ -127,11 +138,9 @@ class WeatherViewModel : ViewModel() {
 
     private fun createForecastFromApiResponse(response: WeatherApiResponse) {
         val hourlyData = response.forecast.forecastday.firstOrNull()?.hour ?: emptyList()
-
-        // Получаем текущий час для фильтрации будущих часов
         val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
 
-        // Фильтруем только будущие часы текущего дня
+        // Filter only future hours of current day
         val futureHours = hourlyData.filter {
             val hourTime = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
                 .parse(it.time)?.let { date ->
@@ -143,7 +152,7 @@ class WeatherViewModel : ViewModel() {
             hourTime > currentHour
         }
 
-        // Берем до 6 будущих часов
+        // Take up to 6 future hours
         forecastState = futureHours.take(6).map { hour ->
             val hourFormat = SimpleDateFormat("h a", Locale.getDefault())
             val hourDate = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).parse(hour.time)
@@ -155,7 +164,7 @@ class WeatherViewModel : ViewModel() {
             )
         }
 
-        // Если не хватает данных для 6 часов, добавляем генерированные
+        // If not enough data for 6 hours, add generated ones
         if (forecastState.size < 6) {
             val currentWeather = (weatherState as? WeatherUiState.Success)?.data
             if (currentWeather != null) {
@@ -192,32 +201,15 @@ class WeatherViewModel : ViewModel() {
         }
     }
 
-    private fun createForecastFromWeather(weatherData: WeatherData) {
-        val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        forecastState = List(6) { index ->
-            val hour = (currentHour + index + 1) % 24
-            val calendar = Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, hour)
-            }
-            val format = SimpleDateFormat("h a", Locale.getDefault())
-
-            HourlyModel(
-                hour = format.format(calendar.time),
-                temp = weatherData.temperature + (-2..2).random(),
-                picPath = weatherData.weatherType
-            )
-        }
-    }
-
-    // Преобразование кодов состояния погоды от WeatherAPI в типы погоды для приложения
+    // Convert weather condition codes to app weather types
     private fun getWeatherType(conditionCode: Int): String {
         return when (conditionCode) {
-            1000 -> "sunny" // Ясно
-            in 1003..1009 -> "cloudy" // Облачно
-            in 1030..1035 -> "cloudy" // Туман, дымка
-            in 1063..1201 -> "rainy" // Дождь
-            in 1204..1237 -> "cloudy_sunny" // Снег или смешанно
-            in 1240..1282 -> "rainy" // Дождь, гроза
+            1000 -> "sunny" // Clear
+            in 1003..1009 -> "cloudy" // Cloudy
+            in 1030..1035 -> "cloudy" // Fog, mist
+            in 1063..1201 -> "rainy" // Rain
+            in 1204..1237 -> "cloudy_sunny" // Snow or mixed
+            in 1240..1282 -> "rainy" // Rain, thunderstorm
             else -> "cloudy_sunny"
         }
     }
@@ -244,10 +236,11 @@ data class WeatherData(
     val humidity: Int,
     val windSpeed: Float,
     val cityName: String,
-    val weatherType: String
+    val weatherType: String,
+    val precipitation: Float = 0f
 )
 
-// Классы для парсинга ответа от WeatherAPI.com
+// API response classes
 data class WeatherApiResponse(
     val location: Location,
     val current: Current,
