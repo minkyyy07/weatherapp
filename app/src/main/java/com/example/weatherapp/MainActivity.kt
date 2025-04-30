@@ -71,6 +71,8 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
     var expandedCountry by remember { mutableStateOf(false) }
     var expandedCity by remember { mutableStateOf(false) }
 
+    // Comment out language selection functionality
+    /*
     // Language selection
     val languages = listOf("English", "Русский", "Українська")
     var selectedLanguage by remember { mutableStateOf("English") }
@@ -91,6 +93,7 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
         configuration.setLocale(locale)
         context.createConfigurationContext(configuration)
     }
+    */
 
     // Map of countries to their cities
     val citiesByCountry = remember {
@@ -177,6 +180,8 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                     modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    // Comment out language selector
+                    /*
                     // Language selector
                     Box(
                         modifier = Modifier
@@ -239,12 +244,13 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                             }
                         }
                     }
+                    */
 
                     // Country selector
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 8.dp, start = 16.dp, end = 16.dp),
+                            .padding(top = 16.dp, start = 16.dp, end = 16.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         ExposedDropdownMenuBox(
