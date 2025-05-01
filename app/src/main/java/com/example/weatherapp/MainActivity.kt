@@ -4,9 +4,16 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.runtime.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -62,6 +69,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
@@ -70,8 +78,35 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
     var selectedCity by remember { mutableStateOf("London") }
     var expandedCountry by remember { mutableStateOf(false) }
     var expandedCity by remember { mutableStateOf(false) }
+    val favoritesManager = remember { FavoritesManager() }
 
     val settingsExpanded by remember { mutableStateOf(false) }
+
+    @Composable
+    fun AnimatedExample() {
+        var isVisible by remember { mutableStateOf(true) }
+
+        Column {
+            Button(onClick = { isVisible = !isVisible }) {
+                Text("Toggle Visibility")
+            }
+
+            AnimatedVisibility(
+                visible = isVisible,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                Text("Hello, Animation!", style = MaterialTheme.typography.bodyLarge)
+            }
+        }
+    }
+
+    Button(
+        onClick = { favoritesManager.addCity(selectedCity) },
+        colors = ButtonDefaults.buttonColors(containerColor = Color.White)
+    ) {
+        Text("Add to Favorites", color = Color.Black)
+    }
 
     // Comment out language selection functionality
     /*
