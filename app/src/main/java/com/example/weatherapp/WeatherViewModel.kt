@@ -123,13 +123,29 @@ class WeatherViewModel : ViewModel() {
 
     private fun processWeeklyForecast(response: WeatherApiResponse) {
         val dailyForecasts = response.forecast.forecastday.drop(1).map { forecastDay ->
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val dateObj = dateFormat.parse(forecastDay.date) ?: Date()
+            val formattedDate = SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(dateObj)
+
+            // Get the weather type based on condition code
+            val weatherType = getWeatherType(forecastDay.day.condition.code)
+
+            // Get a resource ID based on the weather type
+            val iconResource = when (weatherType) {
+                "sunny" -> R.drawable.sunny
+                "cloudy" -> R.drawable.cloudy
+                "rainy" -> R.drawable.rain
+                "cloudy_sunny" -> R.drawable.cloudy_sunny
+                else -> R.drawable.cloudy_sunny
+            }
+
             DailyForecast(
-                date = SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(
-                    SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(forecastDay.date) ?: Date()),
+                date = formattedDate,
                 maxTemp = forecastDay.day.maxtemp_c.toInt(),
                 minTemp = forecastDay.day.mintemp_c.toInt(),
-                weatherType = getWeatherType(forecastDay.day.condition.code),
-                condition = forecastDay.day.condition.text
+                weatherType = weatherType,
+                condition = forecastDay.day.condition.text,
+                icon = iconResource  // Using the resource int
             )
         }
 
@@ -160,7 +176,11 @@ class WeatherViewModel : ViewModel() {
             HourlyModel(
                 hour = hourFormat.format(hourDate ?: Date()),
                 temp = hour.temp_c.toInt(),
-                picPath = getWeatherType(hour.condition.code)
+                picPath = getWeatherType(hour.condition.code),
+                humidity = hour.humidity,
+                windSpeed = hour.wind_kph / 3.6f,
+                precipitationValue = hour.precip_mm,
+                icon = hour.condition.icon
             )
         }
 
@@ -196,7 +216,11 @@ class WeatherViewModel : ViewModel() {
             HourlyModel(
                 hour = format.format(calendar.time),
                 temp = weatherData.temperature + (-2..2).random(),
-                picPath = weatherData.weatherType
+                picPath = weatherData.weatherType,
+                humidity = weatherData.humidity,
+                windSpeed = weatherData.windSpeed,
+                precipitationValue = weatherData.precipitation,
+                icon = "https://cdn.weatherapi.com/weather/64x64/day/116.png" // Default icon
             )
         }
     }
