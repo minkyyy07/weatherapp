@@ -13,6 +13,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.runtime.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -81,6 +83,21 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
     val favoritesManager = remember { FavoritesManager() }
 
     val settingsExpanded by remember { mutableStateOf(false) }
+
+    @Composable
+    fun AnimatedList(items: List<String>) {
+        LazyColumn {
+            items(items) { item ->
+                AnimatedVisibility(
+                    visible = true,
+                    enter = slideInVertically() + fadeIn(),
+                    exit = slideOutVertically() + fadeOut()
+                ) {
+                    Text(item, modifier = Modifier.padding(8.dp))
+                }
+            }
+        }
+    }
 
     @Composable
     fun AnimatedExample() {
