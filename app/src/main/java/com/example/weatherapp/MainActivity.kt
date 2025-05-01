@@ -328,7 +328,24 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
 
 @Composable
 fun AnimatedDropdownMenuItem(text: @Composable () -> Unit, onClick: () -> Unit, index: Int) {
-    TODO("Not yet implemented")
+    var visible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        delay(50L * index)
+        visible = true
+    }
+
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+        exit = fadeOut() + slideOutVertically()
+    ) {
+        DropdownMenuItem(
+            text = text,
+            onClick = onClick,
+            modifier = Modifier.animateEnterExit()
+        )
+    }
 }
 
 @Composable
@@ -810,151 +827,120 @@ fun WeeklyTemperatureChart(weeklyData: List<DailyForecast>) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(200.dp)
-            .padding(4.dp),
+            .padding(8.dp),
         verticalArrangement = Arrangement.Center
     ) {
-        // Legend
+        // Legend - with white text
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 2.dp),
-            horizontalArrangement = Arrangement.End
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier
-                    .size(8.dp)
-                    .background(Color(0xFFF06292)))
-                Spacer(modifier = Modifier.width(2.dp))
-                Text("Max", color = Color.White, fontSize = 10.sp)
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier
-                    .size(8.dp)
-                    .background(Color(0xFF64B5F6)))
-                Spacer(modifier = Modifier.width(2.dp))
-                Text("Min", color = Color.White, fontSize = 10.sp)
-            }
+            Text("Min", color = Color(0xFF8FB3FF), fontSize = 14.sp)
+            Text("Max", color = Color(0xFFFF9E80), fontSize = 14.sp)
+            Text("Temperature (°C)", color = Color.White, fontSize = 14.sp)
         }
 
-        // Find min/max values
-        val maxTemp = weeklyData.maxOf { it.maxTemp }
-        val minTemp = weeklyData.minOf { it.minTemp }
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // Use a minimum range of 10°C to prevent excessive scaling
-        val minRange = 10
-        val actualRange = (maxTemp - minTemp).coerceAtLeast(1)
-        val range = maxOf(actualRange, minRange)
-
-        // Create visual midpoint for better appearance
-        val visualMinTemp = minTemp - ((range - actualRange) / 2)
-
-        // Available height for bars
-        val maxBarHeight = 100.dp
-
-        // Chart container
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(160.dp)
-                .padding(vertical = 4.dp)
+        // Create horizontal temperature chart like hourly chart
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom
         ) {
-            Row(
-                modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.Bottom
-            ) {
-                weeklyData.take(7).forEachIndexed { index, forecast ->
-                    AnimatedWeeklyBar(
-                        forecast = forecast,
-                        visualMinTemp = visualMinTemp,
-                        range = range,
-                        maxBarHeight = maxBarHeight,
-                        index = index
-                    )
-                }
+            weeklyData.forEachIndexed { index, forecast ->
+                val dayName = forecast.date.split(",").firstOrNull() ?: ""
+
+                AnimatedTemperatureBarForWeekly(
+                    maxTemp = forecast.maxTemp,
+                    minTemp = forecast.minTemp,
+                    dayName = dayName,
+                    index = index
+                )
             }
         }
     }
 }
 
 @Composable
-fun AnimatedWeeklyBar(
-    forecast: DailyForecast,
-    visualMinTemp: Int,
-    range: Int,
-    maxBarHeight: androidx.compose.ui.unit.Dp,
+fun AnimatedTemperatureBarForWeekly(
+    maxTemp: Int,
+    minTemp: Int,
+    dayName: String,
     index: Int
 ) {
     var visible by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        delay(100L * index)
+        delay(50L * index)
         visible = true
     }
 
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn() + slideInVertically(),
+        enter = fadeIn() + slideInVertically(initialOffsetY = { it * 2 }),
         exit = fadeOut() + slideOutVertically()
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(horizontal = 4.dp)
+            modifier = Modifier.width(40.dp)
         ) {
+            // Max temperature with value
             Text(
-                text = "${forecast.maxTemp}°",
-                style = MaterialTheme.typography.bodySmall
+                text = "$maxTemp°",
+                color = Color(0xFFFF9E80),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            // Temperature bar
+            Box(
+                modifier = Modifier
+                    .width(8.dp)
+                    .height(80.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                // Background bar
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(2.dp)
+                        .background(Color(0x33FFFFFF))
+                )
+
+                // Gradient temperature bar
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(8.dp)
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color(0xFFFF9E80), // Max temp color (warm)
+                                    Color(0xFF8FB3FF)  // Min temp color (cool)
+                                )
+                            ),
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                )
+            }
+
+            // Min temperature with value
+            Text(
+                text = "$minTemp°",
+                color = Color(0xFF8FB3FF),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
             )
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Bar for max temperature
-            Box(
-                modifier = Modifier
-                    .width(8.dp)
-                    .height(
-                        ((forecast.maxTemp - visualMinTemp).toFloat() / range * maxBarHeight.value).dp
-                    )
-                    .background(
-                        Color(0xFF5E9EFF),
-                        RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
-                    )
-            )
-
-            // Bar for min temperature
-            Box(
-                modifier = Modifier
-                    .width(8.dp)
-                    .height(
-                        ((forecast.minTemp - visualMinTemp).toFloat() / range * maxBarHeight.value).dp
-                    )
-                    .background(
-                        Color(0xFF8BC4FF),
-                        RoundedCornerShape(bottomStart = 4.dp, bottomEnd = 4.dp)
-                    )
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
+            // Day name
             Text(
-                text = "${forecast.minTemp}°",
-                style = MaterialTheme.typography.bodySmall
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Icon(
-                painter = painterResource(id = forecast.icon),
-                contentDescription = forecast.condition,
-                modifier = Modifier.size(24.dp),
-                tint = Color.Unspecified
-            )
-
-            Text(
-                text = forecast.date.take(3),
-                style = MaterialTheme.typography.bodySmall
+                text = dayName,
+                color = Color.White,
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center
             )
         }
     }
@@ -1154,7 +1140,8 @@ fun AnimatedTemperatureBar(
         ) {
             Text(
                 text = "$temp°",
-                style = MaterialTheme.typography.bodySmall
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White
             )
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -1174,7 +1161,8 @@ fun AnimatedTemperatureBar(
 
             Text(
                 text = label,
-                style = MaterialTheme.typography.bodySmall
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White
             )
         }
     }
