@@ -71,6 +71,8 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
     var expandedCountry by remember { mutableStateOf(false) }
     var expandedCity by remember { mutableStateOf(false) }
 
+    val settingsExpanded by remember { mutableStateOf(false) }
+
     // Comment out language selection functionality
     /*
     // Language selection
