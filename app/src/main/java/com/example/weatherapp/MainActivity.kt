@@ -46,10 +46,13 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.ui.graphics.Brush
+import kotlinx.coroutines.Dispatchers
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+import kotlin.div
 import kotlin.text.toFloat
 import kotlin.times
 
@@ -1102,13 +1105,16 @@ fun AnimatedChart(content: @Composable () -> Unit) {
     var visible by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        delay(300)
-        visible = true
+        withContext(Dispatchers.Default) {
+            delay(300)
+            visible = true
+        }
     }
 
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn() + expandVertically(),
+        enter = fadeIn(animationSpec = tween(400)) +
+                expandVertically(animationSpec = tween(400, easing = FastOutSlowInEasing)),
         exit = fadeOut() + shrinkVertically()
     ) {
         content()
@@ -1125,13 +1131,17 @@ fun AnimatedTemperatureBar(
     var visible by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        delay(50L * index)
+        delay(30L * index) // Faster staggering
         visible = true
     }
 
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+        enter = fadeIn(animationSpec = tween(300)) +
+                slideInVertically(
+                    initialOffsetY = { it / 3 },
+                    animationSpec = tween(300, easing = EaseOutQuart)
+                ),
         exit = fadeOut() + slideOutVertically()
     ) {
         Column(
@@ -1198,10 +1208,12 @@ fun AnimatedTabContent(selectedTab: Int, content: @Composable () -> Unit) {
     AnimatedContent(
         targetState = selectedTab,
         transitionSpec = {
-            fadeIn() with fadeOut()
-        },
-        content = { content() }
-    )
+            fadeIn(animationSpec = tween(300)) with
+                    fadeOut(animationSpec = tween(300))
+        }
+    ) { _ ->  // Using _ to explicitly ignore the parameter
+        content()
+    }
 }
 
 @Composable
