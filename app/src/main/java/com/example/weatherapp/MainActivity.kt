@@ -752,16 +752,16 @@ fun WeatherChartsContent(data: WeatherData, viewModel: WeatherViewModel) {
             )
         }
 
-        item {
-            AnimatedListItem(
-                content = {
-                    WeatherChartCard(title = "Precipitation") {
-                        PrecipitationChart(hourlyData)
-                    }
-                },
-                index = 3
-            )
-        }
+//        item {
+//            AnimatedListItem(
+//                content = {
+//                    WeatherChartCard(title = "Precipitation") {
+//                        PrecipitationChart(hourlyData)
+//                    }
+//                },
+//                index = 3
+//            )
+//        }
     }
 }
 
@@ -1030,72 +1030,72 @@ fun MetricsChart(hourlyData: List<HourlyModel>) {
     }
 }
 
-@Composable
-fun PrecipitationChart(hourlyData: List<HourlyModel>) {
-    if (hourlyData.isEmpty()) {
-        EmptyChartMessage()
-        return
-    }
-
-    Column(modifier = Modifier.padding(8.dp)) {
-        // Legend
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp),
-            horizontalArrangement = Arrangement.Start
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .background(Color(0xFF4CAF50), RoundedCornerShape(2.dp))
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Precipitation (mm x10)", color = Color.White, fontSize = 12.sp)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Simplified chart
-        AnimatedChart {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(150.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.Bottom
-            ) {
-                hourlyData.take(8).forEachIndexed { index, data ->
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Bottom
-                    ) {
-                        // Precipitation bar - safe access with default
-                        Box(
-                            modifier = Modifier
-                                .width(12.dp)
-                                .height((data.precipitationValue * 10).dp)
-                                .background(
-                                    Color(0xFF4CAF50),
-                                    RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp)
-                                )
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Text(
-                            text = data.hour,
-                            fontSize = 10.sp,
-                            color = Color.White
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
+//@Composable
+//fun PrecipitationChart(hourlyData: List<HourlyModel>) {
+//    if (hourlyData.isEmpty()) {
+//        EmptyChartMessage()
+//        return
+//    }
+//
+//    Column(modifier = Modifier.padding(8.dp)) {
+//        // Legend
+//        Row(
+//            modifier = Modifier
+//                .fillMaxWidth()
+//                .padding(bottom = 8.dp),
+//            horizontalArrangement = Arrangement.Start
+//        ) {
+//            Row(verticalAlignment = Alignment.CenterVertically) {
+//                Box(
+//                    modifier = Modifier
+//                        .size(12.dp)
+//                        .background(Color(0xFF4CAF50), RoundedCornerShape(2.dp))
+//                )
+//                Spacer(modifier = Modifier.width(4.dp))
+//                Text("Precipitation (mm x10)", color = Color.White, fontSize = 12.sp)
+//            }
+//        }
+//
+//        Spacer(modifier = Modifier.height(16.dp))
+//
+//        // Simplified chart
+//        AnimatedChart {
+//            Row(
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .height(150.dp),
+//                horizontalArrangement = Arrangement.SpaceEvenly,
+//                verticalAlignment = Alignment.Bottom
+//            ) {
+//                hourlyData.take(8).forEachIndexed { index, data ->
+//                    Column(
+//                        horizontalAlignment = Alignment.CenterHorizontally,
+//                        verticalArrangement = Arrangement.Bottom
+//                    ) {
+//                        // Precipitation bar - safe access with default
+//                        Box(
+//                            modifier = Modifier
+//                                .width(12.dp)
+//                                .height((data.precipitationValue * 10).dp)
+//                                .background(
+//                                    Color(0xFF4CAF50),
+//                                    RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp)
+//                                )
+//                        )
+//
+//                        Spacer(modifier = Modifier.height(4.dp))
+//
+//                        Text(
+//                            text = data.hour,
+//                            fontSize = 10.sp,
+//                            color = Color.White
+//                        )
+//                    }
+//                }
+//            }
+//        }
+//    }
+//}
 
 @Composable
 fun AnimatedChart(content: @Composable () -> Unit) {
@@ -1176,13 +1176,16 @@ fun AnimatedListItem(
     var visible by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        delay(index * 50L)
+        delay(index * 40L) // Reduced delay
         visible = true
     }
 
     AnimatedVisibility(
         visible = visible,
-        enter = slideInVertically(initialOffsetY = { it * 2 }) + fadeIn(),
+        enter = slideInVertically(
+            initialOffsetY = { it / 2 }, // Reduced distance
+            animationSpec = tween(300, easing = FastOutSlowInEasing)
+        ) + fadeIn(animationSpec = tween(250)),
         exit = slideOutVertically() + fadeOut()
     ) {
         content()
