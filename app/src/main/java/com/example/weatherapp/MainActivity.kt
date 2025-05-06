@@ -45,6 +45,10 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Place
+import com.google.accompanist.pager.ExperimentalPagerApi
+import com.google.accompanist.pager.HorizontalPager
+import com.google.accompanist.pager.rememberPagerState
+import kotlinx.coroutines.flow.collect
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.ui.graphics.Brush
 import kotlinx.coroutines.Dispatchers
@@ -67,7 +71,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class, ExperimentalPagerApi::class)
 @Composable
 fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
     val countries = listOf("United Kingdom", "USA", "Japan", "France", "Russia", "Germany", "Australia", "Ukraine")
@@ -93,6 +97,22 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
 
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Today", "Weekly", "Charts")
+
+    // Initialize pager state
+    val pagerState = rememberPagerState(initialPage = selectedTab)
+
+    // Keep selectedTab and pagerState in sync
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.currentPage }.collect { page ->
+            selectedTab = page
+        }
+    }
+
+    LaunchedEffect(selectedTab) {
+        if (pagerState.currentPage != selectedTab) {
+            pagerState.animateScrollToPage(selectedTab)
+        }
+    }
 
     // Add debounce mechanism to prevent too many rapid API calls
     var lastApiCallTime by remember { mutableStateOf(0L) }
@@ -316,9 +336,13 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                         }
                     }
 
-                    // Display content based on selected tab with animation
-                    AnimatedTabContent(selectedTab = selectedTab) {
-                        when (selectedTab) {
+                    // Replace AnimatedTabContent with HorizontalPager
+                    HorizontalPager(
+                        count = tabs.size,
+                        state = pagerState,
+                        modifier = Modifier.weight(1f)
+                    ) { page ->
+                        when (page) {
                             0 -> TodayWeatherContent(displayData, viewModel)
                             1 -> WeeklyForecastContent(viewModel.weeklyForecastState)
                             2 -> WeatherChartsContent(displayData, viewModel)
