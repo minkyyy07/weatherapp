@@ -15,6 +15,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.with
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -1208,7 +1209,7 @@ fun AnimatedTabContent(selectedTab: Int, content: @Composable () -> Unit) {
     AnimatedContent(
         targetState = selectedTab,
         transitionSpec = {
-            fadeIn(animationSpec = tween(300)) with
+            fadeIn(animationSpec = tween(300)) togetherWith
                     fadeOut(animationSpec = tween(300))
         }
     ) { _ ->  // Using _ to explicitly ignore the parameter
@@ -1243,10 +1244,10 @@ fun PulsatingIcon(iconId: Int) {
 fun PulsatingLoadingAnimation() {
     val infiniteTransition = rememberInfiniteTransition(label = "loadingPulsate")
     val scale by infiniteTransition.animateFloat(
-        initialValue = 0.8f,
-        targetValue = 1.2f,
+        initialValue = 0.9f,
+        targetValue = 1.1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = FastOutSlowInEasing),
+            animation = tween(1200, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "loadingScale"
