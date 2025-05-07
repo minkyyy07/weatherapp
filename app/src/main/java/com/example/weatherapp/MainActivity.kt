@@ -19,6 +19,9 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.layout.PaddingValues
+import kotlin.math.absoluteValue
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -48,7 +51,6 @@ import androidx.compose.material.icons.filled.Place
 import com.google.accompanist.pager.ExperimentalPagerApi
 import com.google.accompanist.pager.HorizontalPager
 import com.google.accompanist.pager.rememberPagerState
-import kotlinx.coroutines.flow.collect
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.ui.graphics.Brush
 import kotlinx.coroutines.Dispatchers
@@ -101,17 +103,15 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
     // Initialize pager state
     val pagerState = rememberPagerState(initialPage = selectedTab)
 
-    // Keep selectedTab and pagerState in sync
-    LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.currentPage }.collect { page ->
-            selectedTab = page
-        }
-    }
-
+    // Simple bidirectional binding between tab selection and pager state
     LaunchedEffect(selectedTab) {
         if (pagerState.currentPage != selectedTab) {
             pagerState.animateScrollToPage(selectedTab)
         }
+    }
+
+    LaunchedEffect(pagerState.currentPage) {
+        selectedTab = pagerState.currentPage
     }
 
     // Add debounce mechanism to prevent too many rapid API calls
@@ -336,22 +336,46 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                         }
                     }
 
-                    // Replace AnimatedTabContent with HorizontalPager
+                    // Enhanced pager with smooth animations - FIXED VERSION
                     HorizontalPager(
                         count = tabs.size,
                         state = pagerState,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 8.dp)
                     ) { page ->
-                        when (page) {
-                            0 -> TodayWeatherContent(displayData, viewModel)
-                            1 -> WeeklyForecastContent(viewModel.weeklyForecastState)
-                            2 -> WeatherChartsContent(displayData, viewModel)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    // Calculate current page offset within the scope of this lambda
+                                    val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffset)
+                                        .coerceIn(-1f, 1f)
+
+                                    // Add scaling effect based on how far off-center the page is
+                                    val scale = lerp(0.85f, 1f, 1f - pageOffset.absoluteValue.coerceIn(0f, 1f))
+                                    scaleX = scale
+                                    scaleY = scale
+
+                                    // Add alpha effect - pages fade when swiping
+                                    alpha = lerp(0.6f, 1f, 1f - pageOffset.absoluteValue.coerceIn(0f, 1f))
+                                }
+                        ) {
+                            when (page) {
+                                0 -> TodayWeatherContent(displayData, viewModel)
+                                1 -> WeeklyForecastContent(viewModel.weeklyForecastState)
+                                2 -> WeatherChartsContent(displayData, viewModel)
+                            }
                         }
                     }
                 }
             }
         }
     }
+}
+
+// Linear interpolation function to smoothly transition values
+private fun lerp(start: Float, stop: Float, fraction: Float): Float {
+    return start + fraction * (stop - start)
 }
 
 @Composable
@@ -1236,7 +1260,8 @@ fun AnimatedTabContent(selectedTab: Int, content: @Composable () -> Unit) {
             fadeIn(animationSpec = tween(300)) togetherWith
                     fadeOut(animationSpec = tween(300))
         }
-    ) { _ ->  // Using _ to explicitly ignore the parameter
+    ) {
+        // Completely remove the underscore parameter, don't use it at all
         content()
     }
 }
