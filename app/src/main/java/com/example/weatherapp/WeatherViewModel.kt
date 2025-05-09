@@ -19,7 +19,7 @@ import java.util.Locale
 
 class WeatherViewModel : ViewModel() {
     // API key from WeatherAPI.com
-    private val apiKey = "053fafa63bb949d3ab4210023252404"
+    private val apiKey = "4765eb059197450fa0b171017250905"
     private val TAG = "WeatherViewModel"
 
     var weatherState by mutableStateOf<WeatherUiState>(WeatherUiState.Loading)

@@ -57,11 +57,13 @@ import com.google.accompanist.pager.HorizontalPager
 import com.google.accompanist.pager.rememberPagerState
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.ui.graphics.Brush
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.div
 import kotlin.text.toFloat
@@ -84,12 +86,12 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class, ExperimentalPagerApi::class)
+// Helper function to get current theme
 @Composable
-fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
-    // Theme management
+fun getCurrentTheme(): ThemeOption {
     val context = LocalContext.current
     val preferences = context.getSharedPreferences("theme_prefs", Context.MODE_PRIVATE)
+    val currentThemeIndex = preferences.getInt("current_theme", 0)
 
     val themeOptions = listOf(
         ThemeOption(
@@ -124,13 +126,54 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
         )
     )
 
-    var currentThemeIndex by remember {
-        mutableIntStateOf(preferences.getInt("current_theme", 0))
-    }
+    return themeOptions[currentThemeIndex]
+}
 
-    var showThemeDialog by remember {
-        mutableStateOf(false)
-    }
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class, ExperimentalPagerApi::class)
+@Composable
+fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
+    // Force the entire composable to rebuild when themes change
+    val context = LocalContext.current
+    val preferences = context.getSharedPreferences("theme_prefs", Context.MODE_PRIVATE)
+
+    // Read from shared preferences every time this composable is called
+    // This is the key to making theme changes apply immediately
+    val currentThemeIndex = preferences.getInt("current_theme", 0)
+
+    var showThemeDialog by remember { mutableStateOf(false) }
+
+    val themeOptions = listOf(
+        ThemeOption(
+            "Purple",
+            Brush.horizontalGradient(
+                colors = listOf(
+                    Color(android.graphics.Color.parseColor("#59469d")),
+                    Color(android.graphics.Color.parseColor("#643d67")),
+                )
+            ),
+            primaryColor = Color(android.graphics.Color.parseColor("#8a72d6"))
+        ),
+        ThemeOption(
+            "Ocean",
+            Brush.horizontalGradient(
+                colors = listOf(
+                    Color(android.graphics.Color.parseColor("#1a2980")),
+                    Color(android.graphics.Color.parseColor("#26d0ce"))
+                )
+            ),
+            primaryColor = Color(android.graphics.Color.parseColor("#3498db"))
+        ),
+        ThemeOption(
+            "Sunset",
+            Brush.horizontalGradient(
+                colors = listOf(
+                    Color(android.graphics.Color.parseColor("#FF7E5F")),
+                    Color(android.graphics.Color.parseColor("#FF6F20"))
+                )
+            ),
+            primaryColor = Color(android.graphics.Color.parseColor("#e74c3c"))
+        )
+    )
 
     val currentTheme = themeOptions[currentThemeIndex]
 
@@ -195,11 +238,11 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "Error: " + state.message,
+                        text = "Failed to load weather data: ${state.message}",
                         color = Color.White,
                         fontSize = 18.sp,
                         textAlign = TextAlign.Center
@@ -224,118 +267,59 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                            .padding(horizontal = 24.dp, vertical = 16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Country selector
-                        Box(
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            ExposedDropdownMenuBox(
-                                expanded = expandedCountry,
-                                onExpandedChange = { expandedCountry = !expandedCountry }
-                            ) {
-                                TextField(
-                                    value = selectedCountry,
-                                    onValueChange = {},
-                                    readOnly = true,
-                                    colors = TextFieldDefaults.colors(
-                                        unfocusedContainerColor = Color.White.copy(alpha = 0.2f),
-                                        focusedContainerColor = Color.White.copy(alpha = 0.3f),
-                                        unfocusedTextColor = Color.White,
-                                        focusedTextColor = Color.White
-                                    ),
-                                    trailingIcon = {
-                                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCountry)
-                                    },
-                                    modifier = Modifier
-                                        .menuAnchor()
-                                        .fillMaxWidth()
-                                )
-
-                                ExposedDropdownMenu(
-                                    expanded = expandedCountry,
-                                    onDismissRequest = { expandedCountry = false },
-                                    modifier = Modifier.background(Color.DarkGray)
-                                ) {
-                                    countries.forEachIndexed { index, country ->
-                                        AnimatedDropdownMenuItem(
-                                            text = { Text(country, color = Color.White) },
-                                            onClick = {
-                                                selectedCountry = country
-                                                expandedCountry = false
-                                            },
-                                            index = index
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // Theme switcher button
-                        Spacer(modifier = Modifier.width(8.dp))
+                        // Theme button
                         IconButton(
                             onClick = { showThemeDialog = true },
                             modifier = Modifier
-                                .size(40.dp)
-                                .background(Color.White.copy(alpha = 0.2f), CircleShape)
+                                .size(48.dp)
+                                .background(
+                                    currentTheme.primaryColor.copy(alpha = 0.2f),
+                                    CircleShape
+                                )
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Info,
-                                contentDescription = "Change Theme",
+                                painter = painterResource(id = R.drawable.cloudy),
+                                contentDescription = "Theme",
                                 tint = Color.White
                             )
                         }
-                    }
 
-                    // City selector
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        ExposedDropdownMenuBox(
-                            expanded = expandedCity,
-                            onExpandedChange = { expandedCity = !expandedCity }
-                        ) {
-                            TextField(
-                                value = selectedCity,
-                                onValueChange = {},
-                                readOnly = true,
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.Place,
-                                        contentDescription = "City",
-                                        tint = Color.White
-                                    )
-                                },
-                                trailingIcon = {
-                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCity)
-                                },
-                                colors = TextFieldDefaults.colors(
-                                    unfocusedContainerColor = Color.White.copy(alpha = 0.2f),
-                                    focusedContainerColor = Color.White.copy(alpha = 0.3f),
-                                    unfocusedTextColor = Color.White,
-                                    focusedTextColor = Color.White
+                        // Country dropdown
+                        Box {
+                            Button(
+                                onClick = { expandedCountry = !expandedCountry },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = currentTheme.primaryColor.copy(alpha = 0.2f)
                                 ),
-                                modifier = Modifier
-                                    .menuAnchor()
-                                    .fillMaxWidth()
-                            )
+                                contentPadding = PaddingValues(horizontal = 16.dp)
+                            ) {
+                                Text(selectedCountry, color = Color.White)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(
+                                    imageVector = if (expandedCountry)
+                                        Icons.Default.KeyboardArrowUp
+                                    else
+                                        Icons.Default.KeyboardArrowDown,
+                                    contentDescription = "Expand",
+                                    tint = Color.White
+                                )
+                            }
 
-                            ExposedDropdownMenu(
-                                expanded = expandedCity,
-                                onDismissRequest = { expandedCity = false },
+                            DropdownMenu(
+                                expanded = expandedCountry,
+                                onDismissRequest = { expandedCountry = false },
                                 modifier = Modifier.background(Color.DarkGray)
                             ) {
-                                val cities = citiesByCountry[selectedCountry] ?: emptyList()
-                                cities.forEachIndexed { index, city ->
+                                countries.forEachIndexed { index, country ->
                                     AnimatedDropdownMenuItem(
-                                        text = { Text(city, color = Color.White) },
+                                        text = { Text(country, color = Color.White) },
                                         onClick = {
-                                            selectedCity = city
-                                            expandedCity = false
+                                            selectedCountry = country
+                                            expandedCountry = false
                                         },
                                         index = index
                                     )
@@ -344,36 +328,103 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                         }
                     }
 
+                    // City selector
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                    ) {
+                        Button(
+                            onClick = { expandedCity = !expandedCity },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = currentTheme.primaryColor.copy(alpha = 0.2f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Place,
+                                contentDescription = "Location",
+                                tint = Color.White
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(selectedCity, color = Color.White)
+                            Spacer(modifier = Modifier.weight(1f))
+                            Icon(
+                                imageVector = if (expandedCity)
+                                    Icons.Default.KeyboardArrowUp
+                                else
+                                    Icons.Default.KeyboardArrowDown,
+                                contentDescription = "Expand",
+                                tint = Color.White
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = expandedCity,
+                            onDismissRequest = { expandedCity = false },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.DarkGray)
+                                .align(Alignment.TopCenter)
+                        ) {
+                            val cities = citiesByCountry[selectedCountry] ?: emptyList()
+                            cities.forEachIndexed { index, city ->
+                                AnimatedDropdownMenuItem(
+                                    text = { Text(city, color = Color.White) },
+                                    onClick = {
+                                        selectedCity = city
+                                        expandedCity = false
+                                    },
+                                    index = index
+                                )
+                            }
+                        }
+                    }
+
                     // Location and date info
                     Text(
-                        text = displayData.cityName,
+                        text = "${displayData.cityName}, ${selectedCountry}",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
-                        modifier = Modifier.padding(top = 8.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        textAlign = TextAlign.Center
                     )
 
                     // Tabs
                     TabRow(
                         selectedTabIndex = selectedTabIndex,
                         containerColor = Color.Transparent,
-                        contentColor = Color.White,
-                        indicator = { tabPositions ->
+                        indicator = @Composable { tabPositions ->
                             Box(
                                 modifier = Modifier
                                     .tabIndicatorOffset(tabPositions[selectedTabIndex])
-                                    .height(3.dp)
-                                    .background(Color.White)
+                                    .height(4.dp)
+                                    .padding(horizontal = 32.dp)
+                                    .background(
+                                        color = currentTheme.primaryColor,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
                             )
-                        }
+                        },
+                        divider = { Spacer(modifier = Modifier.height(4.dp)) }
                     ) {
                         tabs.forEachIndexed { index, title ->
                             Tab(
                                 selected = selectedTabIndex == index,
                                 onClick = { selectedTabIndex = index },
-                                text = { Text(title) },
-                                selectedContentColor = Color.White,
-                                unselectedContentColor = Color.White.copy(alpha = 0.6f)
+                                text = {
+                                    Text(
+                                        text = title,
+                                        color = Color.White,
+                                        fontWeight = if (selectedTabIndex == index)
+                                            FontWeight.Bold
+                                        else
+                                            FontWeight.Normal
+                                    )
+                                }
                             )
                         }
                     }
@@ -382,9 +433,7 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                     HorizontalPager(
                         count = tabs.size,
                         state = pagerState,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
+                        modifier = Modifier.weight(1f)
                     ) { page ->
                         AnimatedTabContent(selectedTab = page) {
                             when (page) {
@@ -404,10 +453,14 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                 themes = themeOptions,
                 currentThemeIndex = currentThemeIndex,
                 onThemeSelected = { index ->
-                    currentThemeIndex = index
-                    // Save selection to preferences
-                    preferences.edit().putInt("current_theme", index).apply()
-                    showThemeDialog = false
+                    // Save the theme preference in SharedPreferences
+                    context.getSharedPreferences("theme_prefs", Context.MODE_PRIVATE)
+                        .edit()
+                        .putInt("current_theme", index)
+                        .apply()
+
+                    // Force activity recreation to apply theme instantly
+                    (context as? ComponentActivity)?.recreate()
                 },
                 onDismiss = { showThemeDialog = false }
             )
@@ -422,6 +475,8 @@ fun ThemeSelectionDialog(
     onThemeSelected: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Select Theme") },
@@ -433,7 +488,22 @@ fun ThemeSelectionDialog(
                     ThemeOptionItem(
                         theme = theme,
                         isSelected = index == currentThemeIndex,
-                        onClick = { onThemeSelected(index) }
+                        onClick = {
+                            // Save theme index
+                            context.getSharedPreferences("theme_prefs", Context.MODE_PRIVATE)
+                                .edit()
+                                .putInt("current_theme", index)
+                                .apply()
+
+                            // Notify the caller with the new index
+                            onThemeSelected(index)
+
+                            // Add small delay before dismissing dialog
+                            CoroutineScope(Dispatchers.Main).launch {
+                                delay(200)
+                                onDismiss()
+                            }
+                        }
                     )
                 }
             }
@@ -526,6 +596,7 @@ fun getCurrentTime(): String {
 
 @Composable
 fun FutureModelViewHolder(model: HourlyModel, index: Int) {
+    val currentTheme = getCurrentTheme()
     var visible by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -544,7 +615,7 @@ fun FutureModelViewHolder(model: HourlyModel, index: Int) {
                 .wrapContentHeight()
                 .padding(4.dp)
                 .background(
-                    color = colorResource(id = R.color.purple),
+                    color = currentTheme.primaryColor.copy(alpha = 0.2f),
                     shape = RoundedCornerShape(16.dp)
                 )
                 .padding(8.dp),
@@ -636,45 +707,10 @@ fun WeatherDetailItem(icon: Int, value: String, label: String) {
 
 @Composable
 fun TodayWeatherContent(data: WeatherData, viewModel: WeatherViewModel) {
-    // Get the current theme
-    val context = LocalContext.current
-    val preferences = context.getSharedPreferences("theme_prefs", Context.MODE_PRIVATE)
-    val currentThemeIndex = preferences.getInt("current_theme", 0)
+    val currentTheme = getCurrentTheme()
 
-    val themeOptions = listOf(
-        ThemeOption(
-            "Purple",
-            Brush.horizontalGradient(
-                colors = listOf(
-                    Color(android.graphics.Color.parseColor("#59469d")),
-                    Color(android.graphics.Color.parseColor("#643d67")),
-                )
-            ),
-            primaryColor = Color(android.graphics.Color.parseColor("#8a72d6"))
-        ),
-        ThemeOption(
-            "Ocean",
-            Brush.horizontalGradient(
-                colors = listOf(
-                    Color(android.graphics.Color.parseColor("#1a2980")),
-                    Color(android.graphics.Color.parseColor("#26d0ce"))
-                )
-            ),
-            primaryColor = Color(android.graphics.Color.parseColor("#3498db"))
-        ),
-        ThemeOption(
-            "Sunset",
-            Brush.horizontalGradient(
-                colors = listOf(
-                    Color(android.graphics.Color.parseColor("#FF7E5F")),
-                    Color(android.graphics.Color.parseColor("#FF6F20"))
-                )
-            ),
-            primaryColor = Color(android.graphics.Color.parseColor("#e74c3c"))
-        )
-    )
-
-    val currentTheme = themeOptions[currentThemeIndex]
+    // Create a mutable state for random rain value to make it interactive
+    val rainValue = remember { mutableFloatStateOf((0..5).random().toFloat()) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -733,7 +769,7 @@ fun TodayWeatherContent(data: WeatherData, viewModel: WeatherViewModel) {
                 textAlign = TextAlign.Center
             )
 
-            // Additional details - use theme color instead of hardcoded color
+            // Additional details - using theme color
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -747,24 +783,24 @@ fun TodayWeatherContent(data: WeatherData, viewModel: WeatherViewModel) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.SpaceAround
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    AnimatedWeatherDetailItem(
-                        icon = R.drawable.humidity,
-                        value = "${data.humidity}%",
-                        label = "Humidity",
-                        index = 0
-                    )
                     AnimatedWeatherDetailItem(
                         icon = R.drawable.wind,
                         value = "${data.windSpeed} m/s",
                         label = "Wind",
+                        index = 0
+                    )
+                    AnimatedWeatherDetailItem(
+                        icon = R.drawable.humidity,
+                        value = "${data.humidity}%",
+                        label = "Humidity",
                         index = 1
                     )
                     AnimatedWeatherDetailItem(
                         icon = R.drawable.rain,
-                        value = "${String.format("%.1f", data.precipitation)} mm",
+                        value = "${String.format("%.1f", rainValue.floatValue)} mm",
                         label = "Rain",
                         index = 2
                     )
@@ -830,9 +866,13 @@ fun WeeklyForecastContent(weeklyForecast: List<DailyForecast>) {
 
 @Composable
 fun DailyForecastItem(forecast: DailyForecast) {
+    val currentTheme = getCurrentTheme()
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = colorResource(id = R.color.purple)),
+        colors = CardDefaults.cardColors(
+            containerColor = currentTheme.primaryColor.copy(alpha = 0.2f)
+        ),
         shape = RoundedCornerShape(16.dp)
     ) {
         Row(
@@ -842,85 +882,44 @@ fun DailyForecastItem(forecast: DailyForecast) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Day
+            // Use the correct property names from your DailyForecast class
             Text(
-                text = forecast.date,
+                text = forecast.date, // Использование нового имени свойства
                 color = Color.White,
                 fontSize = 16.sp,
                 modifier = Modifier.width(100.dp)
             )
 
-            // Weather icon and description
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.weight(1f)
-            ) {
-                Image(
-                    painter = painterResource(
-                        id = when (forecast.weatherType) {
-                            "cloudy" -> R.drawable.cloudy
-                            "sunny" -> R.drawable.sunny
-                            "wind" -> R.drawable.wind
-                            "rainy" -> R.drawable.rain
-                            "cloudy_sunny" -> R.drawable.cloudy
-                            else -> R.drawable.sunny
-                        }
-                    ),
-                    contentDescription = null,
-                    modifier = Modifier.size(40.dp)
-                )
+            // Weather icon
+            Image(
+                painter = painterResource(id = forecast.icon), // Использование нового имени свойства
+                contentDescription = null,
+                modifier = Modifier.size(32.dp)
+            )
 
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Text(
-                    text = forecast.condition,
-                    color = Color.White,
-                    fontSize = 14.sp
-                )
-            }
-
-            // Temperatures
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.End,
-                modifier = Modifier.width(80.dp)
-            ) {
-                Text(
-                    text = "${forecast.maxTemp}°",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Text(
-                    text = "${forecast.minTemp}°",
-                    color = Color.LightGray,
-                    fontSize = 16.sp
-                )
-            }
+            // Use the correct temperature property names
+            Text(
+                text = "${forecast.minTemp}° / ${forecast.maxTemp}°",
+                color = Color.White,
+                fontSize = 16.sp
+            )
         }
     }
 }
 
-@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun WeatherChartsContent(data: WeatherData, viewModel: WeatherViewModel) {
-    val hourlyData = viewModel.forecastState
-    val weeklyData = viewModel.weeklyForecastState
-
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
             Text(
                 text = "Weather Charts",
-                style = MaterialTheme.typography.titleLarge,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
                 color = Color.White,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -929,58 +928,85 @@ fun WeatherChartsContent(data: WeatherData, viewModel: WeatherViewModel) {
             )
         }
 
+        // Hourly temperature chart
         item {
             AnimatedListItem(
                 content = {
-                    WeatherChartCard(title = "Today's Temperature") {
-                        HourlyTemperatureChart(hourlyData)
+                    WeatherChartCard(title = "Today's Hourly Temperature") {
+                        HourlyTemperatureChart(viewModel.forecastState)
                     }
                 },
                 index = 0
             )
         }
 
+        // Weekly temperature chart
         item {
             AnimatedListItem(
                 content = {
                     WeatherChartCard(title = "Weekly Temperature") {
-                        WeeklyTemperatureChart(weeklyData)
+                        WeeklyTemperatureChart(viewModel.weeklyForecastState)
                     }
                 },
                 index = 1
             )
         }
 
+        // Humidity and wind chart
         item {
             AnimatedListItem(
                 content = {
                     WeatherChartCard(title = "Humidity and Wind") {
-                        MetricsChart(hourlyData)
+                        // Simple display of humidity and wind data
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceAround
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("Humidity", color = Color.White)
+                                Text("${data.humidity}%", color = Color.White, fontSize = 20.sp)
+                            }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("Wind Speed", color = Color.White)
+                                Text("${data.windSpeed} m/s", color = Color.White, fontSize = 20.sp)
+                            }
+                        }
                     }
                 },
                 index = 2
             )
         }
+    }
+}
 
-//        item {
-//            AnimatedListItem(
-//                content = {
-//                    WeatherChartCard(title = "Precipitation") {
-//                        PrecipitationChart(hourlyData)
-//                    }
-//                },
-//                index = 3
-//            )
-//        }
+@Composable
+fun AnimatedListItem(content: @Composable () -> Unit, index: Int) {
+    var visible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        delay(100L * index)
+        visible = true
+    }
+
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn() + expandVertically(),
+        exit = fadeOut() + shrinkVertically()
+    ) {
+        content()
     }
 }
 
 @Composable
 fun WeatherChartCard(title: String, content: @Composable () -> Unit) {
+    val currentTheme = getCurrentTheme()
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = colorResource(id = R.color.purple))
+        colors = CardDefaults.cardColors(
+            containerColor = currentTheme.primaryColor.copy(alpha = 0.2f)
+        )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
@@ -995,79 +1021,112 @@ fun WeatherChartCard(title: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-fun HourlyTemperatureChart(hourlyData: List<HourlyModel>) {
-    if (hourlyData.isEmpty()) {
-        EmptyChartMessage()
+fun HourlyTemperatureChart(hourlyForecast: List<HourlyModel>) {
+    if (hourlyForecast.isEmpty()) {
+        Text("No hourly data available", color = Color.White)
         return
     }
 
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(200.dp)
-            .padding(8.dp),
-        verticalArrangement = Arrangement.Center
+            .height(160.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.Bottom
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Bottom
-        ) {
-            hourlyData.take(8).forEachIndexed { index, hourData ->
-                AnimatedTemperatureBar(
-                    temp = hourData.temp,
-                    max = hourlyData.maxOf { it.temp } + 5,
-                    label = hourData.hour,
-                    index = index
-                )
-            }
+        val maxTemp = hourlyForecast.maxOfOrNull { it.temp }?.toInt() ?: 0
+
+        hourlyForecast.forEachIndexed { index, item ->
+            AnimatedTemperatureBar(
+                temp = item.temp.toInt(),
+                max = maxTemp,
+                label = item.hour,
+                index = index
+            )
         }
     }
 }
 
 @Composable
-fun WeeklyTemperatureChart(weeklyData: List<DailyForecast>) {
-    if (weeklyData.isEmpty()) {
-        EmptyChartMessage()
+fun WeeklyTemperatureChart(weeklyForecast: List<DailyForecast>) {
+    if (weeklyForecast.isEmpty()) {
+        Text("No weekly data available", color = Color.White)
         return
     }
 
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp),
-        verticalArrangement = Arrangement.Center
+            .height(200.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.Bottom
     ) {
-        // Legend - with white text
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text("Min", color = Color(0xFF8FB3FF), fontSize = 14.sp)
-            Text("Max", color = Color(0xFFFF9E80), fontSize = 14.sp)
-            Text("Temperature (°C)", color = Color.White, fontSize = 14.sp)
+        weeklyForecast.forEachIndexed { index, forecast ->
+            val dayName = forecast.date.split(",").firstOrNull() ?: "" // Использование нового имени свойства 'date' // <-- Здесь ошибка
+
+            AnimatedTemperatureBarForWeekly(
+                maxTemp = forecast.maxTemp,
+                minTemp = forecast.minTemp,
+                dayName = dayName,
+                index = index
+            )
         }
+    }
+}
 
-        Spacer(modifier = Modifier.height(16.dp))
+@Composable
+fun AnimatedTemperatureBar(
+    temp: Int,
+    max: Int,
+    label: String,
+    index: Int
+) {
+    val currentTheme = getCurrentTheme()
+    var visible by remember { mutableStateOf(false) }
 
-        // Create horizontal temperature chart like hourly chart
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Bottom
+    LaunchedEffect(Unit) {
+        delay(30L * index) // Faster staggering
+        visible = true
+    }
+
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
+        exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom)
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Bottom
         ) {
-            weeklyData.forEachIndexed { index, forecast ->
-                val dayName = forecast.date.split(",").firstOrNull() ?: ""
+            // Temperature value
+            Text(
+                text = "$temp°",
+                fontSize = 12.sp,
+                color = Color.White
+            )
 
-                AnimatedTemperatureBarForWeekly(
-                    maxTemp = forecast.maxTemp,
-                    minTemp = forecast.minTemp,
-                    dayName = dayName,
-                    index = index
-                )
-            }
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Temperature bar with relative height
+            val height = if (max > 0) (temp.toFloat() / max * 100).coerceIn(10f, 100f) else 10f
+            Box(
+                modifier = Modifier
+                    .width(10.dp)
+                    .height(height.dp)
+                    .background(
+                        currentTheme.primaryColor,
+                        RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp)
+                    )
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Label
+            Text(
+                text = label,
+                fontSize = 10.sp,
+                color = Color.White
+            )
         }
     }
 }
@@ -1079,6 +1138,7 @@ fun AnimatedTemperatureBarForWeekly(
     dayName: String,
     index: Int
 ) {
+    val currentTheme = getCurrentTheme()
     var visible by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -1088,324 +1148,64 @@ fun AnimatedTemperatureBarForWeekly(
 
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn() + slideInVertically(initialOffsetY = { it * 2 }),
-        exit = fadeOut() + slideOutVertically()
+        enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
+        exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom)
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.width(40.dp)
+            modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)
         ) {
-            // Max temperature with value
-            Text(
-                text = "$maxTemp°",
-                color = Color(0xFFFF9E80),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            // Temperature bar
-            Box(
-                modifier = Modifier
-                    .width(8.dp)
-                    .height(80.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                // Background bar
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .width(2.dp)
-                        .background(Color(0x33FFFFFF))
-                )
-
-                // Gradient temperature bar
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .width(8.dp)
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color(0xFFFF9E80), // Max temp color (warm)
-                                    Color(0xFF8FB3FF)  // Min temp color (cool)
-                                )
-                            ),
-                            shape = RoundedCornerShape(4.dp)
-                        )
-                )
-            }
-
-            // Min temperature with value
-            Text(
-                text = "$minTemp°",
-                color = Color(0xFF8FB3FF),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Day name
             Text(
                 text = dayName,
                 color = Color.White,
-                fontSize = 12.sp,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-}
-
-@Composable
-fun MetricsChart(hourlyData: List<HourlyModel>) {
-    if (hourlyData.isEmpty()) {
-        EmptyChartMessage()
-        return
-    }
-
-    Column(modifier = Modifier.padding(8.dp)) {
-        // Legend
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .background(Color(0xFF2196F3), CircleShape)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Humidity (%)", color = Color.White, fontSize = 12.sp)
-            }
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .background(Color(0xFFFF9800), CircleShape)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Wind (m/s x10)", color = Color.White, fontSize = 12.sp)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Simplified chart
-        AnimatedChart {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(150.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.Bottom
-            ) {
-                hourlyData.take(8).forEachIndexed { index, data ->
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Bottom
-                    ) {
-                        // Humidity bar
-                        val humidity = data.humidity ?: 0
-                        Box(
-                            modifier = Modifier
-                                .width(20.dp)
-                                .height((humidity.toFloat()).coerceAtLeast(0f).toInt().dp)
-                                .background(Color(0xFF2196F3), RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp))
-                        )
-
-                        // Wind speed bar
-                        val windSpeed = data.windSpeed ?: 0.0
-                        Box(
-                            modifier = Modifier
-                                .width(20.dp)
-                                .height((windSpeed.toFloat() * 10).coerceAtLeast(0f).toInt().dp)
-                                .background(Color(0xFFFF9800), RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp))
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Text(
-                            text = data.hour,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontSize = 10.sp
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-//@Composable
-//fun PrecipitationChart(hourlyData: List<HourlyModel>) {
-//    if (hourlyData.isEmpty()) {
-//        EmptyChartMessage()
-//        return
-//    }
-//
-//    Column(modifier = Modifier.padding(8.dp)) {
-//        // Legend
-//        Row(
-//            modifier = Modifier
-//                .fillMaxWidth()
-//                .padding(bottom = 8.dp),
-//            horizontalArrangement = Arrangement.Start
-//        ) {
-//            Row(verticalAlignment = Alignment.CenterVertically) {
-//                Box(
-//                    modifier = Modifier
-//                        .size(12.dp)
-//                        .background(Color(0xFF4CAF50), RoundedCornerShape(2.dp))
-//                )
-//                Spacer(modifier = Modifier.width(4.dp))
-//                Text("Precipitation (mm x10)", color = Color.White, fontSize = 12.sp)
-//            }
-//        }
-//
-//        Spacer(modifier = Modifier.height(16.dp))
-//
-//        // Simplified chart
-//        AnimatedChart {
-//            Row(
-//                modifier = Modifier
-//                    .fillMaxWidth()
-//                    .height(150.dp),
-//                horizontalArrangement = Arrangement.SpaceEvenly,
-//                verticalAlignment = Alignment.Bottom
-//            ) {
-//                hourlyData.take(8).forEachIndexed { index, data ->
-//                    Column(
-//                        horizontalAlignment = Alignment.CenterHorizontally,
-//                        verticalArrangement = Arrangement.Bottom
-//                    ) {
-//                        // Precipitation bar - safe access with default
-//                        Box(
-//                            modifier = Modifier
-//                                .width(12.dp)
-//                                .height((data.precipitationValue * 10).dp)
-//                                .background(
-//                                    Color(0xFF4CAF50),
-//                                    RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp)
-//                                )
-//                        )
-//
-//                        Spacer(modifier = Modifier.height(4.dp))
-//
-//                        Text(
-//                            text = data.hour,
-//                            fontSize = 10.sp,
-//                            color = Color.White
-//                        )
-//                    }
-//                }
-//            }
-//        }
-//    }
-//}
-
-@Composable
-fun AnimatedChart(content: @Composable () -> Unit) {
-    var visible by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        withContext(Dispatchers.Default) {
-            delay(300)
-            visible = true
-        }
-    }
-
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(animationSpec = tween(400)) +
-                expandVertically(animationSpec = tween(400, easing = FastOutSlowInEasing)),
-        exit = fadeOut() + shrinkVertically()
-    ) {
-        content()
-    }
-}
-
-@Composable
-fun AnimatedTemperatureBar(
-    temp: Int,
-    max: Int,
-    label: String,
-    index: Int
-) {
-    var visible by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        delay(30L * index) // Faster staggering
-        visible = true
-    }
-
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(animationSpec = tween(300)) +
-                slideInVertically(
-                    initialOffsetY = { it / 3 },
-                    animationSpec = tween(300, easing = EaseOutQuart)
-                ),
-        exit = fadeOut() + slideOutVertically()
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(horizontal = 4.dp)
-        ) {
-            Text(
-                text = "$temp°",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.White
+                fontSize = 14.sp,
+                modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Temperature bar
             Box(
                 modifier = Modifier
+                    .height(100.dp)
                     .width(20.dp)
-                    .height((temp.toFloat() / max.toFloat() * 100).dp)
-                    .background(
-                        Color(0xFF5E9EFF),
-                        RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
-                    )
-            )
+            ) {
+                // Min temperature bar
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height((minTemp * 2).dp)
+                        .background(
+                            currentTheme.primaryColor.copy(alpha = 0.4f),
+                            RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
+                        )
+                )
+
+                // Max temperature bar
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height((maxTemp * 2).dp)
+                        .background(
+                            currentTheme.primaryColor,
+                            RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
+                        )
+                )
+            }
 
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = label,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.White
+                text = "${maxTemp}°",
+                color = Color.White,
+                fontSize = 14.sp
+            )
+
+            Text(
+                text = "${minTemp}°",
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 12.sp
             )
         }
-    }
-}
-
-@Composable
-fun AnimatedListItem(
-    content: @Composable () -> Unit,
-    index: Int
-) {
-    var visible by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        delay(index * 40L) // Reduced delay
-        visible = true
-    }
-
-    AnimatedVisibility(
-        visible = visible,
-        enter = slideInVertically(
-            initialOffsetY = { it / 2 }, // Reduced distance
-            animationSpec = tween(300, easing = FastOutSlowInEasing)
-        ) + fadeIn(animationSpec = tween(250)),
-        exit = slideOutVertically() + fadeOut()
-    ) {
-        content()
     }
 }
 
@@ -1415,39 +1215,18 @@ fun AnimatedTabContent(selectedTab: Int, content: @Composable () -> Unit) {
     AnimatedContent(
         targetState = selectedTab,
         transitionSpec = {
-            fadeIn(animationSpec = tween(300)) togetherWith
-                    fadeOut(animationSpec = tween(300))
-        }
-    ) { _ ->
+            fadeIn() togetherWith fadeOut()
+        },
+        label = "tabAnimation"
+    ) {
         content()
     }
 }
 
 @Composable
-fun PulsatingIcon(iconId: Int) {
-    val infiniteTransition = rememberInfiniteTransition(label = "iconPulsate")
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.2f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "iconScale"
-    )
-
-    Image(
-        painter = painterResource(id = iconId),
-        contentDescription = null,
-        modifier = Modifier
-            .size(120.dp)
-            .scale(scale)
-            .padding(16.dp)
-    )
-}
-
-@Composable
 fun PulsatingLoadingAnimation() {
+    val currentTheme = getCurrentTheme()
+
     val infiniteTransition = rememberInfiniteTransition(label = "loadingPulsate")
     val scale by infiniteTransition.animateFloat(
         initialValue = 0.9f,
@@ -1467,17 +1246,42 @@ fun PulsatingLoadingAnimation() {
             modifier = Modifier
                 .size(80.dp)
                 .scale(scale)
-                .background(Color(0x226200EE), CircleShape)
+                .background(currentTheme.primaryColor.copy(alpha = 0.3f), CircleShape)
         )
         CircularProgressIndicator(
-            color = Color.White,
+            color = currentTheme.primaryColor,
             modifier = Modifier.size(50.dp)
         )
     }
 }
 
 @Composable
+fun PulsatingIcon(iconId: Int) {
+    val infiniteTransition = rememberInfiniteTransition(label = "iconPulsate")
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 0.9f,
+        targetValue = 1.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "iconScale"
+    )
+
+    Image(
+        painter = painterResource(id = iconId),
+        contentDescription = null,
+        modifier = Modifier
+            .size(150.dp)
+            .scale(scale),
+        contentScale = ContentScale.Fit
+    )
+}
+
+@Composable
 fun AnimatedButton(text: String, onClick: () -> Unit) {
+    val currentTheme = getCurrentTheme()
+
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.9f else 1f,
@@ -1490,7 +1294,7 @@ fun AnimatedButton(text: String, onClick: () -> Unit) {
             onClick()
         },
         modifier = Modifier.scale(scale),
-        colors = ButtonDefaults.buttonColors(containerColor = colorResource(id = R.color.purple))
+        colors = ButtonDefaults.buttonColors(containerColor = currentTheme.primaryColor)
     ) {
         Text(text, color = Color.White)
     }
@@ -1500,21 +1304,5 @@ fun AnimatedButton(text: String, onClick: () -> Unit) {
             delay(100)
             isPressed = false
         }
-    }
-}
-
-@Composable
-fun EmptyChartMessage() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(150.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            "No data available",
-            color = Color.White,
-            fontSize = 16.sp
-        )
     }
 }
