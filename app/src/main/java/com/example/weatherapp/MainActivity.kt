@@ -5,7 +5,6 @@ import android.content.Context
 import androidx.compose.foundation.border
 import androidx.compose.ui.draw.clip
 import android.os.Bundle
-import android.app.Activity
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -133,12 +132,14 @@ fun getCurrentTheme(): ThemeOption {
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class, ExperimentalPagerApi::class)
 @Composable
 fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
+    // Force the entire composable to rebuild when themes change
     val context = LocalContext.current
-    val activity = context as? Activity
-
-    // Theme management
     val preferences = context.getSharedPreferences("theme_prefs", Context.MODE_PRIVATE)
+
+    // Read from shared preferences every time this composable is called
+    // This is the key to making theme changes apply immediately
     val currentThemeIndex = preferences.getInt("current_theme", 0)
+
     var showThemeDialog by remember { mutableStateOf(false) }
 
     val themeOptions = listOf(
@@ -183,8 +184,7 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
     var expandedCountry by remember { mutableStateOf(false) }
     var expandedCity by remember { mutableStateOf(false) }
 
-    // City mapping with Irpin added to Ukrainian cities
-    // City mapping with expanded Ukrainian cities
+    // City mapping
     val citiesByCountry = mapOf(
         "United Kingdom" to listOf("London", "Manchester", "Liverpool"),
         "USA" to listOf("New York", "Los Angeles", "Chicago", "Miami"),
@@ -193,14 +193,12 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
         "Russia" to listOf("Moscow", "Saint Petersburg"),
         "Germany" to listOf("Berlin", "Munich", "Hamburg", "Cologne", "Nüremberg"),
         "Australia" to listOf("Sydney", "Melbourne", "Perth"),
-        "Ukraine" to listOf("Kyiv", "Lviv", "Odesa", "Irpin", "Kharkiv", "Dnipro", "Zaporizhzhia", "Mariupol", "Chernihiv", "Vinnytsia", "Poltava", "Khmelnytskyi", "Cherkasy", "Zhytomyr", "Uzhhorod")
+        "Ukraine" to listOf("Kyiv", "Lviv", "Odesa")
     )
 
     // Tab selection
-    val rainValue = remember { mutableStateOf((0..5).random().toFloat()) }
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("Today", "Weekly", "Charts")
-    var selectedTabIndex by remember { mutableStateOf(0) }
-
     val pagerState = rememberPagerState()
 
     // Effect to update the city when country changes
@@ -278,11 +276,14 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                             onClick = { showThemeDialog = true },
                             modifier = Modifier
                                 .size(48.dp)
-                                .background(currentTheme.primaryColor.copy(alpha = 0.2f), shape = CircleShape)
+                                .background(
+                                    currentTheme.primaryColor.copy(alpha = 0.2f),
+                                    CircleShape
+                                )
                         ) {
                             Icon(
-                                painter = painterResource(id = R.drawable.ic_palette),
-                                contentDescription = "Change Theme",
+                                painter = painterResource(id = R.drawable.cloudy),
+                                contentDescription = "Theme",
                                 tint = Color.White
                             )
                         }
@@ -294,19 +295,16 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = currentTheme.primaryColor.copy(alpha = 0.2f)
                                 ),
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                                contentPadding = PaddingValues(horizontal = 16.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Place,
-                                    contentDescription = null,
-                                    tint = Color.White
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(selectedCountry, color = Color.White)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Icon(
-                                    imageVector = if (expandedCountry) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                                    contentDescription = null,
+                                    imageVector = if (expandedCountry)
+                                        Icons.Default.KeyboardArrowUp
+                                    else
+                                        Icons.Default.KeyboardArrowDown,
+                                    contentDescription = "Expand",
                                     tint = Color.White
                                 )
                             }
@@ -314,9 +312,7 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                             DropdownMenu(
                                 expanded = expandedCountry,
                                 onDismissRequest = { expandedCountry = false },
-                                modifier = Modifier
-                                    .background(Color.DarkGray)
-                                    .heightIn(max = 300.dp)
+                                modifier = Modifier.background(Color.DarkGray)
                             ) {
                                 countries.forEachIndexed { index, country ->
                                     AnimatedDropdownMenuItem(
@@ -347,15 +343,18 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Place,
-                                contentDescription = null,
+                                contentDescription = "Location",
                                 tint = Color.White
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(selectedCity, color = Color.White)
                             Spacer(modifier = Modifier.weight(1f))
                             Icon(
-                                imageVector = if (expandedCity) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                                contentDescription = null,
+                                imageVector = if (expandedCity)
+                                    Icons.Default.KeyboardArrowUp
+                                else
+                                    Icons.Default.KeyboardArrowDown,
+                                contentDescription = "Expand",
                                 tint = Color.White
                             )
                         }
@@ -364,9 +363,9 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                             expanded = expandedCity,
                             onDismissRequest = { expandedCity = false },
                             modifier = Modifier
-                                .background(Color.DarkGray)
-                                .heightIn(max = 300.dp)
                                 .fillMaxWidth()
+                                .background(Color.DarkGray)
+                                .align(Alignment.TopCenter)
                         ) {
                             val cities = citiesByCountry[selectedCountry] ?: emptyList()
                             cities.forEachIndexed { index, city ->
@@ -402,10 +401,10 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                             Box(
                                 modifier = Modifier
                                     .tabIndicatorOffset(tabPositions[selectedTabIndex])
-                                    .height(3.dp)
-                                    .padding(horizontal = 40.dp)
+                                    .height(4.dp)
+                                    .padding(horizontal = 32.dp)
                                     .background(
-                                        color = Color.White,
+                                        color = currentTheme.primaryColor,
                                         shape = RoundedCornerShape(8.dp)
                                     )
                             )
@@ -419,9 +418,11 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                                 text = {
                                     Text(
                                         text = title,
-                                        color = if (selectedTabIndex == index) Color.White else Color.White.copy(alpha = 0.6f),
-                                        fontSize = 16.sp,
-                                        fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal
+                                        color = Color.White,
+                                        fontWeight = if (selectedTabIndex == index)
+                                            FontWeight.Bold
+                                        else
+                                            FontWeight.Normal
                                     )
                                 }
                             )
@@ -452,13 +453,14 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                 themes = themeOptions,
                 currentThemeIndex = currentThemeIndex,
                 onThemeSelected = { index ->
-                    // Save the selected theme
-                    preferences.edit()
+                    // Save the theme preference in SharedPreferences
+                    context.getSharedPreferences("theme_prefs", Context.MODE_PRIVATE)
+                        .edit()
                         .putInt("current_theme", index)
                         .apply()
 
-                    // Force activity recreation to update UI immediately
-                    (context as? Activity)?.recreate()
+                    // Force activity recreation to apply theme instantly
+                    (context as? ComponentActivity)?.recreate()
                 },
                 onDismiss = { showThemeDialog = false }
             )
@@ -798,7 +800,7 @@ fun TodayWeatherContent(data: WeatherData, viewModel: WeatherViewModel) {
                     )
                     AnimatedWeatherDetailItem(
                         icon = R.drawable.rain,
-                        value = "${String.format("%.1f", rainValue.value)} mm",
+                        value = "${String.format("%.1f", rainValue.floatValue)} mm",
                         label = "Rain",
                         index = 2
                     )
@@ -1060,12 +1062,7 @@ fun WeeklyTemperatureChart(weeklyForecast: List<DailyForecast>) {
         verticalAlignment = Alignment.Bottom
     ) {
         weeklyForecast.forEachIndexed { index, forecast ->
-            // More robust way to extract day name
-            val dayName = try {
-                forecast.date.split(",").firstOrNull()?.trim() ?: forecast.date
-            } catch (e: Exception) {
-                forecast.date // Fallback to full date if splitting fails
-            }
+            val dayName = forecast.date.split(",").firstOrNull() ?: "" // Использование нового имени свойства 'date' // <-- Здесь ошибка
 
             AnimatedTemperatureBarForWeekly(
                 maxTemp = forecast.maxTemp,
@@ -1230,7 +1227,7 @@ fun AnimatedTabContent(selectedTab: Int, content: @Composable () -> Unit) {
 fun PulsatingLoadingAnimation() {
     val currentTheme = getCurrentTheme()
 
-    val infiniteTransition = rememberInfiniteTransition(label = "pulsate")
+    val infiniteTransition = rememberInfiniteTransition(label = "loadingPulsate")
     val scale by infiniteTransition.animateFloat(
         initialValue = 0.9f,
         targetValue = 1.1f,
@@ -1238,7 +1235,7 @@ fun PulsatingLoadingAnimation() {
             animation = tween(1200, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "scale"
+        label = "loadingScale"
     )
 
     Box(
