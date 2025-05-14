@@ -710,7 +710,9 @@ fun TodayWeatherContent(data: WeatherData, viewModel: WeatherViewModel) {
     val currentTheme = getCurrentTheme()
 
     // Create a mutable state for random rain value to make it interactive
-    val rainValue = remember { mutableFloatStateOf((0..5).random().toFloat()) }
+    val rainValue = remember(data) {
+        mutableFloatStateOf(data.precipitation)
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
