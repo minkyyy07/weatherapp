@@ -66,6 +66,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.div
+import kotlin.text.get
 import kotlin.text.toFloat
 import kotlin.times
 
@@ -317,16 +318,15 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                                     .fillMaxWidth(0.9f)
                                     .clip(RoundedCornerShape(16.dp))
                             ) {
-                                val cities = citiesByCountry[selectedCountry] ?: emptyList()
-                                cities.forEachIndexed { index, city ->
+                                countries.forEachIndexed { index, country ->
                                     AnimatedDropdownMenuItem(
-                                        text = { Text(city, color = Color.White) },
+                                        text = { Text(country, color = Color.White) },
                                         onClick = {
-                                            selectedCity = city
-                                            expandedCity = false
+                                            selectedCountry = country
+                                            expandedCountry = false
                                         },
                                         index = index,
-                                        isSelected = city == selectedCity,
+                                        isSelected = country == selectedCountry,
                                         currentTheme = currentTheme
                                     )
                                 }
@@ -374,7 +374,7 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                                 .clip(RoundedCornerShape(16.dp))
                         ) {
                             val cities = citiesByCountry[selectedCountry] ?: emptyList()
-                            cities.forEachIndexed { index, city ->
+                            cities.forEachIndexed { index, city -> // Changed from countries to cities
                                 AnimatedDropdownMenuItem(
                                     text = { Text(city, color = Color.White) },
                                     onClick = {
