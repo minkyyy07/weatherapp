@@ -138,9 +138,7 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
     val preferences = context.getSharedPreferences("theme_prefs", Context.MODE_PRIVATE)
 
     // Read from shared preferences every time this composable is called
-    // This is the key to making theme changes apply immediately
     val currentThemeIndex = preferences.getInt("current_theme", 0)
-
     var showThemeDialog by remember { mutableStateOf(false) }
 
     val themeOptions = listOf(
@@ -180,8 +178,13 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
 
     // Country and city selection
     val countries = listOf("United Kingdom", "USA", "Japan", "France", "Russia", "Germany", "Australia", "Ukraine")
-    var selectedCountry by remember { mutableStateOf("United Kingdom") }
-    var selectedCity by remember { mutableStateOf("London") }
+
+    // Read saved country and city from SharedPreferences
+    val savedCountry = preferences.getString("selected_country", "United Kingdom")
+    val savedCity = preferences.getString("selected_city", "London")
+
+    var selectedCountry by remember { mutableStateOf(savedCountry ?: "United Kingdom") }
+    var selectedCity by remember { mutableStateOf(savedCity ?: "London") }
     var expandedCountry by remember { mutableStateOf(false) }
     var expandedCity by remember { mutableStateOf(false) }
 
@@ -207,6 +210,13 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
         val cities = citiesByCountry[selectedCountry] ?: emptyList()
         if (cities.isNotEmpty() && !cities.contains(selectedCity)) {
             selectedCity = cities.first()
+
+            // Save the selected country and city to SharedPreferences
+            preferences.edit()
+                .putString("selected_country", selectedCountry)
+                .putString("selected_city", selectedCity)
+                .apply()
+
             viewModel.getWeatherData(selectedCity)
         }
     }
@@ -222,6 +232,12 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
 
     // Effect to load weather data when the city changes
     LaunchedEffect(selectedCity) {
+        // Save selected city to SharedPreferences
+        preferences.edit()
+            .putString("selected_country", selectedCountry)
+            .putString("selected_city", selectedCity)
+            .apply()
+
         viewModel.getWeatherData(selectedCity)
     }
 
@@ -324,6 +340,11 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                                         onClick = {
                                             selectedCountry = country
                                             expandedCountry = false
+
+                                            // Save selection immediately
+                                            preferences.edit()
+                                                .putString("selected_country", selectedCountry)
+                                                .apply()
                                         },
                                         index = index,
                                         isSelected = country == selectedCountry,
@@ -374,12 +395,17 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                                 .clip(RoundedCornerShape(16.dp))
                         ) {
                             val cities = citiesByCountry[selectedCountry] ?: emptyList()
-                            cities.forEachIndexed { index, city -> // Changed from countries to cities
+                            cities.forEachIndexed { index, city ->
                                 AnimatedDropdownMenuItem(
                                     text = { Text(city, color = Color.White) },
                                     onClick = {
                                         selectedCity = city
                                         expandedCity = false
+
+                                        // Save selection immediately
+                                        preferences.edit()
+                                            .putString("selected_city", selectedCity)
+                                            .apply()
                                     },
                                     index = index,
                                     isSelected = city == selectedCity,
