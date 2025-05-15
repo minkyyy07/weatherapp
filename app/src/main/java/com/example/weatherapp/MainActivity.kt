@@ -186,14 +186,14 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
 
     // City mapping
     val citiesByCountry = mapOf(
-        "United Kingdom" to listOf("London", "Manchester", "Liverpool"),
-        "USA" to listOf("New York", "Los Angeles", "Chicago", "Miami"),
-        "Japan" to listOf("Tokyo", "Osaka", "Kyoto"),
-        "France" to listOf("Paris", "Marseille", "Lyon"),
-        "Russia" to listOf("Moscow", "Saint Petersburg"),
-        "Germany" to listOf("Berlin", "Munich", "Hamburg", "Cologne", "Nüremberg"),
-        "Australia" to listOf("Sydney", "Melbourne", "Perth"),
-        "Ukraine" to listOf("Kyiv", "Lviv", "Odesa")
+        "United Kingdom" to listOf("London", "Manchester", "Liverpool", "Birmingham", "Edinburgh", "Glasgow"),
+        "USA" to listOf("New York", "Los Angeles", "Chicago", "Miami", "San Francisco", "Boston", "Seattle", "Denver"),
+        "Japan" to listOf("Tokyo", "Osaka", "Kyoto", "Sapporo", "Yokohama", "Nagoya"),
+        "France" to listOf("Paris", "Marseille", "Lyon", "Nice", "Bordeaux", "Toulouse", "Strasbourg"),
+        "Russia" to listOf("Moscow", "Saint Petersburg", "Novosibirsk", "Kazan", "Sochi", "Vladivostok"),
+        "Germany" to listOf("Berlin", "Munich", "Hamburg", "Cologne", "Nüremberg", "Frankfurt", "Dresden", "Stuttgart"),
+        "Australia" to listOf("Sydney", "Melbourne", "Perth", "Brisbane", "Adelaide", "Canberra", "Gold Coast"),
+        "Ukraine" to listOf("Kyiv", "Lviv", "Odesa", "Irpin", "Kharkiv", "Dnipro", "Mariupol", "Zaporizhzhia")
     )
 
     // Tab selection
@@ -312,16 +312,22 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                             DropdownMenu(
                                 expanded = expandedCountry,
                                 onDismissRequest = { expandedCountry = false },
-                                modifier = Modifier.background(Color.DarkGray)
+                                containerColor = currentTheme.primaryColor.copy(alpha = 0.9f),
+                                modifier = Modifier
+                                    .fillMaxWidth(0.9f)
+                                    .clip(RoundedCornerShape(16.dp))
                             ) {
-                                countries.forEachIndexed { index, country ->
+                                val cities = citiesByCountry[selectedCountry] ?: emptyList()
+                                cities.forEachIndexed { index, city ->
                                     AnimatedDropdownMenuItem(
-                                        text = { Text(country, color = Color.White) },
+                                        text = { Text(city, color = Color.White) },
                                         onClick = {
-                                            selectedCountry = country
-                                            expandedCountry = false
+                                            selectedCity = city
+                                            expandedCity = false
                                         },
-                                        index = index
+                                        index = index,
+                                        isSelected = city == selectedCity,
+                                        currentTheme = currentTheme
                                     )
                                 }
                             }
@@ -362,10 +368,10 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                         DropdownMenu(
                             expanded = expandedCity,
                             onDismissRequest = { expandedCity = false },
+                            containerColor = currentTheme.primaryColor.copy(alpha = 0.9f),
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color.DarkGray)
-                                .align(Alignment.TopCenter)
+                                .fillMaxWidth(0.9f)
+                                .clip(RoundedCornerShape(16.dp))
                         ) {
                             val cities = citiesByCountry[selectedCountry] ?: emptyList()
                             cities.forEachIndexed { index, city ->
@@ -375,7 +381,9 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                                         selectedCity = city
                                         expandedCity = false
                                     },
-                                    index = index
+                                    index = index,
+                                    isSelected = city == selectedCity,
+                                    currentTheme = currentTheme
                                 )
                             }
                         }
@@ -567,7 +575,13 @@ private fun lerp(start: Float, stop: Float, fraction: Float): Float {
 }
 
 @Composable
-fun AnimatedDropdownMenuItem(text: @Composable () -> Unit, onClick: () -> Unit, index: Int) {
+fun AnimatedDropdownMenuItem(
+    text: @Composable () -> Unit,
+    onClick: () -> Unit,
+    index: Int,
+    isSelected: Boolean = false,
+    currentTheme: ThemeOption = getCurrentTheme()
+) {
     var visible by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -580,11 +594,48 @@ fun AnimatedDropdownMenuItem(text: @Composable () -> Unit, onClick: () -> Unit, 
         enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
         exit = fadeOut() + slideOutVertically()
     ) {
-        DropdownMenuItem(
-            text = text,
-            onClick = onClick,
-            modifier = Modifier.animateEnterExit()
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(
+                    color = if (isSelected)
+                        currentTheme.primaryColor.copy(alpha = 0.4f)
+                    else
+                        currentTheme.primaryColor.copy(alpha = 0.15f)
+                )
+                .clickable(onClick = onClick)
+                .padding(vertical = 12.dp, horizontal = 16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (isSelected) {
+                    Icon(
+                        imageVector = Icons.Default.Place,
+                        contentDescription = "Selected",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+
+                Box(modifier = Modifier.weight(1f)) {
+                    text()
+                }
+
+                if (isSelected) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.sunny),
+                        contentDescription = "Selected",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
     }
 }
 
