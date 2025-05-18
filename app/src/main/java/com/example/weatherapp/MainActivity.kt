@@ -141,75 +141,73 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
     val currentThemeIndex = preferences.getInt("current_theme", 0)
     var showThemeDialog by remember { mutableStateOf(false) }
 
+    // Define theme options
     val themeOptions = listOf(
+        // New York - Warm Pink/Orange theme
         ThemeOption(
-            "Purple",
-            Brush.horizontalGradient(
+            "New York",
+            Brush.verticalGradient(
                 colors = listOf(
-                    Color(android.graphics.Color.parseColor("#59469d")),
-                    Color(android.graphics.Color.parseColor("#643d67")),
+                    Color(android.graphics.Color.parseColor("#FF9A9E")),
+                    Color(android.graphics.Color.parseColor("#FAD0C4"))
                 )
             ),
-            primaryColor = Color(android.graphics.Color.parseColor("#8a72d6"))
+            primaryColor = Color(android.graphics.Color.parseColor("#FF7E5F"))
         ),
+        // Boston - Rain theme with blue/green gradient
         ThemeOption(
-            "Ocean",
-            Brush.horizontalGradient(
+            "Boston",
+            Brush.verticalGradient(
                 colors = listOf(
-                    Color(android.graphics.Color.parseColor("#1a2980")),
-                    Color(android.graphics.Color.parseColor("#26d0ce"))
+                    Color(android.graphics.Color.parseColor("#89f7fe")),
+                    Color(android.graphics.Color.parseColor("#66a6ff"))
                 )
             ),
-            primaryColor = Color(android.graphics.Color.parseColor("#3498db"))
+            primaryColor = Color(android.graphics.Color.parseColor("#4facfe"))
         ),
+        // Los Angeles - Blue/Teal theme
         ThemeOption(
-            "Sunset",
-            Brush.horizontalGradient(
+            "Los Angeles",
+            Brush.verticalGradient(
                 colors = listOf(
-                    Color(android.graphics.Color.parseColor("#FF7E5F")),
-                    Color(android.graphics.Color.parseColor("#FF6F20"))
+                    Color(android.graphics.Color.parseColor("#48c6ef")),
+                    Color(android.graphics.Color.parseColor("#6f86d6"))
                 )
             ),
-            primaryColor = Color(android.graphics.Color.parseColor("#e74c3c"))
+            primaryColor = Color(android.graphics.Color.parseColor("#48c6ef"))
         )
     )
 
     val currentTheme = themeOptions[currentThemeIndex]
 
     // Country and city selection
-    val countries = listOf("United Kingdom", "USA", "Japan", "France", "Russia", "Germany", "Australia", "Ukraine")
+    val countries = listOf("United States")
+    val cities = listOf("New York", "Boston", "Los Angeles")
 
     // Read saved country and city from SharedPreferences
-    val savedCountry = preferences.getString("selected_country", "United Kingdom")
-    val savedCity = preferences.getString("selected_city", "London")
+    val savedCountry = preferences.getString("selected_country", "United States")
+    val savedCity = preferences.getString("selected_city", "New York")
 
-    var selectedCountry by remember { mutableStateOf(savedCountry ?: "United Kingdom") }
-    var selectedCity by remember { mutableStateOf(savedCity ?: "London") }
+    var selectedCountry by remember { mutableStateOf(savedCountry ?: "United States") }
+    var selectedCity by remember { mutableStateOf(savedCity ?: "New York") }
     var expandedCountry by remember { mutableStateOf(false) }
     var expandedCity by remember { mutableStateOf(false) }
 
     // City mapping
     val citiesByCountry = mapOf(
-        "United Kingdom" to listOf("London", "Manchester", "Liverpool", "Birmingham", "Edinburgh", "Glasgow"),
-        "USA" to listOf("New York", "Los Angeles", "Chicago", "Miami", "San Francisco", "Boston", "Seattle", "Denver"),
-        "Japan" to listOf("Tokyo", "Osaka", "Kyoto", "Sapporo", "Yokohama", "Nagoya"),
-        "France" to listOf("Paris", "Marseille", "Lyon", "Nice", "Bordeaux", "Toulouse", "Strasbourg"),
-        "Russia" to listOf("Moscow", "Saint Petersburg", "Novosibirsk", "Kazan", "Sochi", "Vladivostok"),
-        "Germany" to listOf("Berlin", "Munich", "Hamburg", "Cologne", "Nüremberg", "Frankfurt", "Dresden", "Stuttgart"),
-        "Australia" to listOf("Sydney", "Melbourne", "Perth", "Brisbane", "Adelaide", "Canberra", "Gold Coast"),
-        "Ukraine" to listOf("Kyiv", "Lviv", "Odesa", "Irpin", "Kharkiv", "Dnipro", "Mariupol", "Zaporizhzhia")
+        "United States" to listOf("New York", "Boston", "Los Angeles")
     )
 
     // Tab selection
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Today", "Weekly", "Charts")
+    val tabs = listOf("DAY", "WEEK")
     val pagerState = rememberPagerState()
 
     // Effect to update the city when country changes
     LaunchedEffect(selectedCountry) {
-        val cities = citiesByCountry[selectedCountry] ?: emptyList()
-        if (cities.isNotEmpty() && !cities.contains(selectedCity)) {
-            selectedCity = cities.first()
+        val availableCities = citiesByCountry[selectedCountry] ?: emptyList()
+        if (availableCities.isNotEmpty() && !availableCities.contains(selectedCity)) {
+            selectedCity = availableCities.first()
 
             // Save the selected country and city to SharedPreferences
             preferences.edit()
@@ -236,6 +234,18 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
         preferences.edit()
             .putString("selected_country", selectedCountry)
             .putString("selected_city", selectedCity)
+            .apply()
+
+        // Update theme based on city
+        val newThemeIndex = when (selectedCity) {
+            "New York" -> 0
+            "Boston" -> 1
+            "Los Angeles" -> 2
+            else -> 0
+        }
+        
+        preferences.edit()
+            .putInt("current_theme", newThemeIndex)
             .apply()
 
         viewModel.getWeatherData(selectedCity)
@@ -274,227 +284,135 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                 val data = state.data
                 val displayData = if (selectedCity == "Nüremberg" && data.cityName.equals("Nuremberg", ignoreCase = true)) {
                     data.copy(cityName = "Nüremberg")
-                } else data
+                } else data.copy(cityName = selectedCity)
 
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Theme switcher and country selector row
-                    Row(
+                    // City name at the top
+                    Text(
+                        text = displayData.cityName.uppercase(),
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 24.dp)
+                    )
+
+                    // Main temperature display with circular background
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(vertical = 24.dp)
+                            .size(180.dp)
+                            .background(
+                                color = Color.White.copy(alpha = 0.2f),
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
                     ) {
-                        // Theme button
-                        IconButton(
-                            onClick = { showThemeDialog = true },
-                            modifier = Modifier
-                                .size(48.dp)
-                                .background(
-                                    currentTheme.primaryColor.copy(alpha = 0.2f),
-                                    CircleShape
-                                )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.cloudy),
-                                contentDescription = "Theme",
-                                tint = Color.White
+                            Text(
+                                text = displayData.description,
+                                color = Color.White,
+                                fontSize = 16.sp
                             )
-                        }
-
-                        // Country dropdown
-                        Box {
-                            Button(
-                                onClick = { expandedCountry = !expandedCountry },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = currentTheme.primaryColor.copy(alpha = 0.2f)
-                                ),
-                                contentPadding = PaddingValues(horizontal = 16.dp)
-                            ) {
-                                Text(selectedCountry, color = Color.White)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Icon(
-                                    imageVector = if (expandedCountry)
-                                        Icons.Default.KeyboardArrowUp
-                                    else
-                                        Icons.Default.KeyboardArrowDown,
-                                    contentDescription = "Expand",
-                                    tint = Color.White
-                                )
-                            }
-
-                            DropdownMenu(
-                                expanded = expandedCountry,
-                                onDismissRequest = { expandedCountry = false },
-                                containerColor = currentTheme.primaryColor.copy(alpha = 0.9f),
-                                modifier = Modifier
-                                    .fillMaxWidth(0.9f)
-                                    .clip(RoundedCornerShape(16.dp))
-                            ) {
-                                countries.forEachIndexed { index, country ->
-                                    AnimatedDropdownMenuItem(
-                                        text = { Text(country, color = Color.White) },
-                                        onClick = {
-                                            selectedCountry = country
-                                            expandedCountry = false
-
-                                            // Save selection immediately
-                                            preferences.edit()
-                                                .putString("selected_country", selectedCountry)
-                                                .apply()
-                                        },
-                                        index = index,
-                                        isSelected = country == selectedCountry,
-                                        currentTheme = currentTheme
-                                    )
-                                }
-                            }
+                            
+                            Text(
+                                text = "${displayData.temperature}°",
+                                color = Color.White,
+                                fontSize = 72.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            
+                            Text(
+                                text = "H:${displayData.maxTemp}° L:${displayData.minTemp}°",
+                                color = Color.White,
+                                fontSize = 14.sp
+                            )
                         }
                     }
 
-                    // City selector
-                    Box(
+                    // Motivational message
+                    val motivationalMessage = when (selectedCity) {
+                        "New York" -> "You totally got this."
+                        "Boston" -> "You are extraordinary."
+                        "Los Angeles" -> "You look amazing today."
+                        else -> "Have a great day!"
+                    }
+                    
+                    Text(
+                        text = motivationalMessage,
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    // Tab selection
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 24.dp)
                     ) {
-                        Button(
-                            onClick = { expandedCity = !expandedCity },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = currentTheme.primaryColor.copy(alpha = 0.2f)
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Place,
-                                contentDescription = "Location",
-                                tint = Color.White
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(selectedCity, color = Color.White)
-                            Spacer(modifier = Modifier.weight(1f))
-                            Icon(
-                                imageVector = if (expandedCity)
-                                    Icons.Default.KeyboardArrowUp
-                                else
-                                    Icons.Default.KeyboardArrowDown,
-                                contentDescription = "Expand",
-                                tint = Color.White
-                            )
-                        }
-
-                        DropdownMenu(
-                            expanded = expandedCity,
-                            onDismissRequest = { expandedCity = false },
-                            containerColor = currentTheme.primaryColor.copy(alpha = 0.9f),
-                            modifier = Modifier
-                                .fillMaxWidth(0.9f)
-                                .clip(RoundedCornerShape(16.dp))
-                        ) {
-                            val cities = citiesByCountry[selectedCountry] ?: emptyList()
-                            cities.forEachIndexed { index, city ->
-                                AnimatedDropdownMenuItem(
-                                    text = { Text(city, color = Color.White) },
-                                    onClick = {
-                                        selectedCity = city
-                                        expandedCity = false
-
-                                        // Save selection immediately
-                                        preferences.edit()
-                                            .putString("selected_city", selectedCity)
-                                            .apply()
-                                    },
-                                    index = index,
-                                    isSelected = city == selectedCity,
-                                    currentTheme = currentTheme
+                        tabs.forEachIndexed { index, title ->
+                            val isSelected = selectedTabIndex == index
+                            
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { selectedTabIndex = index },
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = title,
+                                    color = if (isSelected) Color.White else Color.White.copy(alpha = 0.6f),
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    fontSize = 16.sp
+                                )
+                                
+                                Spacer(modifier = Modifier.height(8.dp))
+                                
+                                Box(
+                                    modifier = Modifier
+                                        .height(2.dp)
+                                        .width(40.dp)
+                                        .background(
+                                            color = if (isSelected) Color.White else Color.Transparent,
+                                            shape = RoundedCornerShape(1.dp)
+                                        )
                                 )
                             }
                         }
                     }
 
-                    // Location and date info
-                    Text(
-                        text = "${displayData.cityName}, ${selectedCountry}",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 16.dp),
-                        textAlign = TextAlign.Center
-                    )
-
-                    // Tabs
-                    TabRow(
-                        selectedTabIndex = selectedTabIndex,
-                        containerColor = Color.Transparent,
-                        indicator = @Composable { tabPositions ->
-                            Box(
-                                modifier = Modifier
-                                    .tabIndicatorOffset(tabPositions[selectedTabIndex])
-                                    .height(4.dp)
-                                    .padding(horizontal = 32.dp)
-                                    .background(
-                                        color = currentTheme.primaryColor,
-                                        shape = RoundedCornerShape(8.dp)
-                                    )
-                            )
-                        },
-                        divider = { Spacer(modifier = Modifier.height(4.dp)) }
-                    ) {
-                        tabs.forEachIndexed { index, title ->
-                            Tab(
-                                selected = selectedTabIndex == index,
-                                onClick = { selectedTabIndex = index },
-                                text = {
-                                    Text(
-                                        text = title,
-                                        color = Color.White,
-                                        fontWeight = if (selectedTabIndex == index)
-                                            FontWeight.Bold
-                                        else
-                                            FontWeight.Normal
-                                    )
-                                }
-                            )
-                        }
-                    }
-
-                    // Tab content with pager
+                    // Content based on selected tab
                     HorizontalPager(
                         count = tabs.size,
                         state = pagerState,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
                     ) { page ->
-                        AnimatedTabContent(selectedTab = page) {
-                            when (page) {
-                                0 -> TodayWeatherContent(data = displayData, viewModel = viewModel)
-                                1 -> WeeklyForecastContent(weeklyForecast = viewModel.weeklyForecastState)
-                                2 -> WeatherChartsContent(data = displayData, viewModel = viewModel)
-                            }
+                        when (page) {
+                            0 -> DayForecastContent(data = displayData, viewModel = viewModel)
+                            1 -> WeekForecastContent(weeklyForecast = viewModel.weeklyForecastState)
                         }
                     }
                 }
             }
         }
 
-        // Theme selection dialog
+        // Theme dialog
         if (showThemeDialog) {
             ThemeSelectionDialog(
                 themes = themeOptions,
                 currentThemeIndex = currentThemeIndex,
                 onThemeSelected = { index ->
-                    // Save the theme preference in SharedPreferences
-                    context.getSharedPreferences("theme_prefs", Context.MODE_PRIVATE)
-                        .edit()
+                    preferences.edit()
                         .putInt("current_theme", index)
                         .apply()
-
-                    // Force activity recreation to apply theme instantly
-                    (context as? ComponentActivity)?.recreate()
+                    showThemeDialog = false
                 },
                 onDismiss = { showThemeDialog = false }
             )
@@ -502,6 +420,163 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
     }
 }
 
+@Composable
+fun DayForecastContent(data: WeatherData, viewModel: WeatherViewModel) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        // Current time indicator
+        Text(
+            text = "NOW",
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(vertical = 8.dp)
+        )
+        
+        // Hourly forecast in a row
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Current weather
+            item {
+                HourlyWeatherItem(
+                    time = "NOW",
+                    temperature = data.temperature,
+                    weatherIcon = getWeatherIconForType(data.weatherType),
+                    isNow = true
+                )
+            }
+            
+            // Future hours
+            val hourlyData = viewModel.forecastState
+            itemsIndexed(hourlyData) { index, hourly ->
+                HourlyWeatherItem(
+                    time = hourly.hour,
+                    temperature = hourly.temp,
+                    weatherIcon = getWeatherIconForType(hourly.picPath),
+                    isNow = false
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun WeekForecastContent(weeklyForecast: List<DailyForecast>) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Display days of the week
+        itemsIndexed(weeklyForecast) { index, forecast ->
+            WeeklyForecastItem(
+                day = forecast.date.split(",")[0], // Extract day name
+                weatherIcon = forecast.icon,
+                highTemp = forecast.maxTemp,
+                lowTemp = forecast.minTemp
+            )
+        }
+    }
+}
+
+@Composable
+fun HourlyWeatherItem(
+    time: String,
+    temperature: Int,
+    weatherIcon: Int,
+    isNow: Boolean
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .width(60.dp)
+            .padding(vertical = 8.dp)
+    ) {
+        Text(
+            text = time,
+            color = Color.White,
+            fontSize = 14.sp
+        )
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Icon(
+            painter = painterResource(id = weatherIcon),
+            contentDescription = "Weather icon",
+            tint = Color.White,
+            modifier = Modifier.size(24.dp)
+        )
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Text(
+            text = "$temperature°",
+            color = Color.White,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+@Composable
+fun WeeklyForecastItem(
+    day: String,
+    weatherIcon: Int,
+    highTemp: Int,
+    lowTemp: Int
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Day name
+        Text(
+            text = day,
+            color = Color.White,
+            fontSize = 16.sp,
+            modifier = Modifier.width(60.dp)
+        )
+        
+        // Weather icon
+        Icon(
+            painter = painterResource(id = weatherIcon),
+            contentDescription = "Weather icon",
+            tint = Color.White,
+            modifier = Modifier
+                .size(24.dp)
+                .padding(horizontal = 8.dp)
+        )
+        
+        Spacer(modifier = Modifier.weight(1f))
+        
+        // Temperature
+        Text(
+            text = "$highTemp°/$lowTemp°",
+            color = Color.White,
+            fontSize = 16.sp
+        )
+    }
+}
+
+@Composable
+fun getWeatherIconForType(weatherType: String): Int {
+    return when (weatherType.lowercase()) {
+        "sunny", "clear" -> R.drawable.sunny
+        "cloudy", "partly cloudy" -> R.drawable.cloudy
+        "rainy", "rain", "light rain" -> R.drawable.rain
+        "cloudy_sunny" -> R.drawable.cloudy_sunny
+        else -> R.drawable.cloudy
+    }
+}
+
+// Keep existing functions below
 @Composable
 fun ThemeSelectionDialog(
     themes: List<ThemeOption>,
@@ -1274,13 +1349,13 @@ fun AnimatedTemperatureBarForWeekly(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "${maxTemp}°",
+                text = "$maxTemp°",
                 color = Color.White,
                 fontSize = 14.sp
             )
 
             Text(
-                text = "${minTemp}°",
+                text = "$minTemp°",
                 color = Color.White.copy(alpha = 0.7f),
                 fontSize = 12.sp
             )
