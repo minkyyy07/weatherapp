@@ -82,7 +82,24 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            WeatherScreen()
+            // Check if it's the first launch
+            val context = LocalContext.current
+            val preferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            val isFirstLaunch = preferences.getBoolean("is_first_launch", true)
+            
+            var showWelcomeScreen by remember { mutableStateOf(isFirstLaunch) }
+            
+            if (showWelcomeScreen) {
+                WelcomeScreen(
+                    onGetStarted = {
+                        showWelcomeScreen = false
+                        // Save that app has been launched
+                        preferences.edit().putBoolean("is_first_launch", false).apply()
+                    }
+                )
+            } else {
+                WeatherScreen()
+            }
         }
     }
 }
@@ -141,73 +158,75 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
     val currentThemeIndex = preferences.getInt("current_theme", 0)
     var showThemeDialog by remember { mutableStateOf(false) }
 
-    // Define theme options
     val themeOptions = listOf(
-        // New York - Warm Pink/Orange theme
         ThemeOption(
-            "New York",
-            Brush.verticalGradient(
+            "Purple",
+            Brush.horizontalGradient(
                 colors = listOf(
-                    Color(android.graphics.Color.parseColor("#FF9A9E")),
-                    Color(android.graphics.Color.parseColor("#FAD0C4"))
+                    Color(android.graphics.Color.parseColor("#59469d")),
+                    Color(android.graphics.Color.parseColor("#643d67")),
                 )
             ),
-            primaryColor = Color(android.graphics.Color.parseColor("#FF7E5F"))
+            primaryColor = Color(android.graphics.Color.parseColor("#8a72d6"))
         ),
-        // Boston - Rain theme with blue/green gradient
         ThemeOption(
-            "Boston",
-            Brush.verticalGradient(
+            "Ocean",
+            Brush.horizontalGradient(
                 colors = listOf(
-                    Color(android.graphics.Color.parseColor("#89f7fe")),
-                    Color(android.graphics.Color.parseColor("#66a6ff"))
+                    Color(android.graphics.Color.parseColor("#1a2980")),
+                    Color(android.graphics.Color.parseColor("#26d0ce"))
                 )
             ),
-            primaryColor = Color(android.graphics.Color.parseColor("#4facfe"))
+            primaryColor = Color(android.graphics.Color.parseColor("#3498db"))
         ),
-        // Los Angeles - Blue/Teal theme
         ThemeOption(
-            "Los Angeles",
-            Brush.verticalGradient(
+            "Sunset",
+            Brush.horizontalGradient(
                 colors = listOf(
-                    Color(android.graphics.Color.parseColor("#48c6ef")),
-                    Color(android.graphics.Color.parseColor("#6f86d6"))
+                    Color(android.graphics.Color.parseColor("#FF7E5F")),
+                    Color(android.graphics.Color.parseColor("#FF6F20"))
                 )
             ),
-            primaryColor = Color(android.graphics.Color.parseColor("#48c6ef"))
+            primaryColor = Color(android.graphics.Color.parseColor("#e74c3c"))
         )
     )
 
     val currentTheme = themeOptions[currentThemeIndex]
 
     // Country and city selection
-    val countries = listOf("United States")
-    val cities = listOf("New York", "Boston", "Los Angeles")
+    val countries = listOf("United Kingdom", "USA", "Japan", "France", "Russia", "Germany", "Australia", "Ukraine")
 
     // Read saved country and city from SharedPreferences
-    val savedCountry = preferences.getString("selected_country", "United States")
-    val savedCity = preferences.getString("selected_city", "New York")
+    val savedCountry = preferences.getString("selected_country", "United Kingdom") ?: "United Kingdom"
+    val savedCity = preferences.getString("selected_city", "London") ?: "London"
 
-    var selectedCountry by remember { mutableStateOf(savedCountry ?: "United States") }
-    var selectedCity by remember { mutableStateOf(savedCity ?: "New York") }
+    var selectedCountry by remember { mutableStateOf(savedCountry) }
+    var selectedCity by remember { mutableStateOf(savedCity) }
     var expandedCountry by remember { mutableStateOf(false) }
     var expandedCity by remember { mutableStateOf(false) }
 
     // City mapping
     val citiesByCountry = mapOf(
-        "United States" to listOf("New York", "Boston", "Los Angeles")
+        "United Kingdom" to listOf("London", "Manchester", "Liverpool", "Birmingham", "Edinburgh", "Glasgow"),
+        "USA" to listOf("New York", "Los Angeles", "Chicago", "Miami", "San Francisco", "Boston", "Seattle", "Denver"),
+        "Japan" to listOf("Tokyo", "Osaka", "Kyoto", "Sapporo", "Yokohama", "Nagoya"),
+        "France" to listOf("Paris", "Marseille", "Lyon", "Nice", "Bordeaux", "Toulouse", "Strasbourg"),
+        "Russia" to listOf("Moscow", "Saint Petersburg", "Novosibirsk", "Kazan", "Sochi", "Vladivostok"),
+        "Germany" to listOf("Berlin", "Munich", "Hamburg", "Cologne", "Nüremberg", "Frankfurt", "Dresden", "Stuttgart"),
+        "Australia" to listOf("Sydney", "Melbourne", "Perth", "Brisbane", "Adelaide", "Canberra", "Gold Coast"),
+        "Ukraine" to listOf("Kyiv", "Lviv", "Odesa", "Irpin", "Kharkiv", "Dnipro", "Mariupol", "Zaporizhzhia")
     )
 
     // Tab selection
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("DAY", "WEEK")
+    val tabs = listOf("Today", "Weekly", "Charts")
     val pagerState = rememberPagerState()
 
     // Effect to update the city when country changes
     LaunchedEffect(selectedCountry) {
-        val availableCities = citiesByCountry[selectedCountry] ?: emptyList()
-        if (availableCities.isNotEmpty() && !availableCities.contains(selectedCity)) {
-            selectedCity = availableCities.first()
+        val cities = citiesByCountry[selectedCountry] ?: emptyList()
+        if (cities.isNotEmpty() && !cities.contains(selectedCity)) {
+            selectedCity = cities.first()
 
             // Save the selected country and city to SharedPreferences
             preferences.edit()
@@ -234,18 +253,6 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
         preferences.edit()
             .putString("selected_country", selectedCountry)
             .putString("selected_city", selectedCity)
-            .apply()
-
-        // Update theme based on city
-        val newThemeIndex = when (selectedCity) {
-            "New York" -> 0
-            "Boston" -> 1
-            "Los Angeles" -> 2
-            else -> 0
-        }
-        
-        preferences.edit()
-            .putInt("current_theme", newThemeIndex)
             .apply()
 
         viewModel.getWeatherData(selectedCity)
@@ -284,135 +291,226 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
                 val data = state.data
                 val displayData = if (selectedCity == "Nüremberg" && data.cityName.equals("Nuremberg", ignoreCase = true)) {
                     data.copy(cityName = "Nüremberg")
-                } else data.copy(cityName = selectedCity)
+                } else data
 
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // City name at the top
-                    Text(
-                        text = displayData.cityName.uppercase(),
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(top = 24.dp)
-                    )
-
-                    // Main temperature display with circular background
-                    Box(
+                    // Theme switcher and country selector row
+                    Row(
                         modifier = Modifier
-                            .padding(vertical = 24.dp)
-                            .size(180.dp)
-                            .background(
-                                color = Color.White.copy(alpha = 0.2f),
-                                shape = CircleShape
-                            ),
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally
+                        // Theme button
+                        IconButton(
+                            onClick = { showThemeDialog = true },
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(
+                                    currentTheme.primaryColor.copy(alpha = 0.2f),
+                                    CircleShape
+                                )
                         ) {
-                            Text(
-                                text = displayData.description,
-                                color = Color.White,
-                                fontSize = 16.sp
+                            Icon(
+                                painter = painterResource(id = R.drawable.cloudy),
+                                contentDescription = "Theme",
+                                tint = Color.White
                             )
-                            
-                            Text(
-                                text = "${displayData.temperature}°",
-                                color = Color.White,
-                                fontSize = 72.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            
-                            Text(
-                                text = "H:${displayData.maxTemp}° L:${displayData.minTemp}°",
-                                color = Color.White,
-                                fontSize = 14.sp
-                            )
+                        }
+
+                        // Country dropdown
+                        Box {
+                            Button(
+                                onClick = { expandedCountry = !expandedCountry },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = currentTheme.primaryColor.copy(alpha = 0.2f)
+                                ),
+                                contentPadding = PaddingValues(horizontal = 16.dp)
+                            ) {
+                                Text(selectedCountry, color = Color.White)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(
+                                    imageVector = if (expandedCountry)
+                                        Icons.Default.KeyboardArrowUp
+                                    else
+                                        Icons.Default.KeyboardArrowDown,
+                                    contentDescription = "Expand",
+                                    tint = Color.White
+                                )
+                            }
+
+                            DropdownMenu(
+                                expanded = expandedCountry,
+                                onDismissRequest = { expandedCountry = false },
+                                containerColor = currentTheme.primaryColor.copy(alpha = 0.9f),
+                                modifier = Modifier
+                                    .fillMaxWidth(0.9f)
+                                    .clip(RoundedCornerShape(16.dp))
+                            ) {
+                                countries.forEachIndexed { index, country ->
+                                    AnimatedDropdownMenuItem(
+                                        text = { Text(country, color = Color.White) },
+                                        onClick = {
+                                            selectedCountry = country
+                                            expandedCountry = false
+
+                                            // Save selection immediately
+                                            preferences.edit()
+                                                .putString("selected_country", selectedCountry)
+                                                .apply()
+                                        },
+                                        index = index,
+                                        isSelected = country == selectedCountry,
+                                        currentTheme = currentTheme
+                                    )
+                                }
+                            }
                         }
                     }
 
-                    // Motivational message
-                    val motivationalMessage = when (selectedCity) {
-                        "New York" -> "You totally got this."
-                        "Boston" -> "You are extraordinary."
-                        "Los Angeles" -> "You look amazing today."
-                        else -> "Have a great day!"
-                    }
-                    
-                    Text(
-                        text = motivationalMessage,
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-
-                    // Tab selection
-                    Row(
+                    // City selector
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 24.dp)
                     ) {
-                        tabs.forEachIndexed { index, title ->
-                            val isSelected = selectedTabIndex == index
-                            
-                            Column(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable { selectedTabIndex = index },
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = title,
-                                    color = if (isSelected) Color.White else Color.White.copy(alpha = 0.6f),
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    fontSize = 16.sp
-                                )
-                                
-                                Spacer(modifier = Modifier.height(8.dp))
-                                
-                                Box(
-                                    modifier = Modifier
-                                        .height(2.dp)
-                                        .width(40.dp)
-                                        .background(
-                                            color = if (isSelected) Color.White else Color.Transparent,
-                                            shape = RoundedCornerShape(1.dp)
-                                        )
+                        Button(
+                            onClick = { expandedCity = !expandedCity },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = currentTheme.primaryColor.copy(alpha = 0.2f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Place,
+                                contentDescription = "Location",
+                                tint = Color.White
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(selectedCity, color = Color.White)
+                            Spacer(modifier = Modifier.weight(1f))
+                            Icon(
+                                imageVector = if (expandedCity)
+                                    Icons.Default.KeyboardArrowUp
+                                else
+                                    Icons.Default.KeyboardArrowDown,
+                                contentDescription = "Expand",
+                                tint = Color.White
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = expandedCity,
+                            onDismissRequest = { expandedCity = false },
+                            containerColor = currentTheme.primaryColor.copy(alpha = 0.9f),
+                            modifier = Modifier
+                                .fillMaxWidth(0.9f)
+                                .clip(RoundedCornerShape(16.dp))
+                        ) {
+                            val cities = citiesByCountry[selectedCountry] ?: emptyList()
+                            cities.forEachIndexed { index, city ->
+                                AnimatedDropdownMenuItem(
+                                    text = { Text(city, color = Color.White) },
+                                    onClick = {
+                                        selectedCity = city
+                                        expandedCity = false
+
+                                        // Save selection immediately
+                                        preferences.edit()
+                                            .putString("selected_city", selectedCity)
+                                            .apply()
+                                    },
+                                    index = index,
+                                    isSelected = city == selectedCity,
+                                    currentTheme = currentTheme
                                 )
                             }
                         }
                     }
 
-                    // Content based on selected tab
+                    // Location and date info
+                    Text(
+                        text = "${displayData.cityName}, ${selectedCountry}",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        textAlign = TextAlign.Center
+                    )
+
+                    // Tabs
+                    TabRow(
+                        selectedTabIndex = selectedTabIndex,
+                        containerColor = Color.Transparent,
+                        indicator = @Composable { tabPositions ->
+                            Box(
+                                modifier = Modifier
+                                    .tabIndicatorOffset(tabPositions[selectedTabIndex])
+                                    .height(4.dp)
+                                    .padding(horizontal = 32.dp)
+                                    .background(
+                                        color = currentTheme.primaryColor,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                            )
+                        },
+                        divider = { Spacer(modifier = Modifier.height(4.dp)) }
+                    ) {
+                        tabs.forEachIndexed { index, title ->
+                            Tab(
+                                selected = selectedTabIndex == index,
+                                onClick = { selectedTabIndex = index },
+                                text = {
+                                    Text(
+                                        text = title,
+                                        color = Color.White,
+                                        fontWeight = if (selectedTabIndex == index)
+                                            FontWeight.Bold
+                                        else
+                                            FontWeight.Normal
+                                    )
+                                }
+                            )
+                        }
+                    }
+
+                    // Tab content with pager
                     HorizontalPager(
                         count = tabs.size,
                         state = pagerState,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
+                        modifier = Modifier.weight(1f)
                     ) { page ->
-                        when (page) {
-                            0 -> DayForecastContent(data = displayData, viewModel = viewModel)
-                            1 -> WeekForecastContent(weeklyForecast = viewModel.weeklyForecastState)
+                        AnimatedTabContent(selectedTab = page) {
+                            when (page) {
+                                0 -> TodayWeatherContent(data = displayData, viewModel = viewModel)
+                                1 -> WeeklyForecastContent(weeklyForecast = viewModel.weeklyForecastState)
+                                2 -> WeatherChartsContent(data = displayData, viewModel = viewModel)
+                            }
                         }
                     }
                 }
             }
         }
 
-        // Theme dialog
+        // Theme selection dialog
         if (showThemeDialog) {
             ThemeSelectionDialog(
                 themes = themeOptions,
                 currentThemeIndex = currentThemeIndex,
                 onThemeSelected = { index ->
+                    // Save the theme preference in SharedPreferences
                     preferences.edit()
                         .putInt("current_theme", index)
                         .apply()
-                    showThemeDialog = false
+
+                    // Force activity recreation to apply theme instantly
+                    (context as? ComponentActivity)?.recreate()
                 },
                 onDismiss = { showThemeDialog = false }
             )
@@ -421,162 +519,373 @@ fun WeatherScreen(viewModel: WeatherViewModel = viewModel()) {
 }
 
 @Composable
-fun DayForecastContent(data: WeatherData, viewModel: WeatherViewModel) {
+fun TodayWeatherContent(data: WeatherData, viewModel: WeatherViewModel) {
+    val currentDate = remember { SimpleDateFormat("MMMM d, yyyy", Locale.getDefault()).format(Date()) }
+    val currentTime = getCurrentTime()
+    
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Current time indicator
+        // Current location and date
         Text(
-            text = "NOW",
+            text = data.cityName,
             color = Color.White,
+            fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(vertical = 8.dp)
+            modifier = Modifier.padding(top = 16.dp)
         )
         
-        // Hourly forecast in a row
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        // Current weather icon and temperature
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp),
+            contentAlignment = Alignment.Center
         ) {
-            // Current weather
-            item {
-                HourlyWeatherItem(
-                    time = "NOW",
-                    temperature = data.temperature,
-                    weatherIcon = getWeatherIconForType(data.weatherType),
-                    isNow = true
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Weather icon
+                Image(
+                    painter = painterResource(
+                        id = when (data.weatherType) {
+                            "sunny" -> R.drawable.sunny
+                            "cloudy" -> R.drawable.cloudy
+                            "rainy" -> R.drawable.rain
+                            "cloudy_sunny" -> R.drawable.cloudy_sunny
+                            else -> R.drawable.cloudy_sunny
+                        }
+                    ),
+                    contentDescription = "Weather",
+                    modifier = Modifier.size(120.dp)
                 )
-            }
-            
-            // Future hours
-            val hourlyData = viewModel.forecastState
-            itemsIndexed(hourlyData) { index, hourly ->
-                HourlyWeatherItem(
-                    time = hourly.hour,
-                    temperature = hourly.temp,
-                    weatherIcon = getWeatherIconForType(hourly.picPath),
-                    isNow = false
+                
+                // Temperature
+                Text(
+                    text = "${data.temperature}°",
+                    color = Color.White,
+                    fontSize = 72.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                // Weather description
+                Text(
+                    text = "Precipitations",
+                    color = Color.White.copy(alpha = 0.8f),
+                    fontSize = 18.sp
+                )
+                
+                // Min/Max temperature
+                Text(
+                    text = "Max: ${data.maxTemp}°   Min:${data.minTemp}°",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    modifier = Modifier.padding(top = 8.dp)
                 )
             }
         }
-    }
-}
-
-@Composable
-fun WeekForecastContent(weeklyForecast: List<DailyForecast>) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // Display days of the week
-        itemsIndexed(weeklyForecast) { index, forecast ->
-            WeeklyForecastItem(
-                day = forecast.date.split(",")[0], // Extract day name
-                weatherIcon = forecast.icon,
-                highTemp = forecast.maxTemp,
-                lowTemp = forecast.minTemp
+        
+        // House image
+        Image(
+            painter = painterResource(id = R.drawable.cloudy_sunny),
+            contentDescription = "House",
+            modifier = Modifier
+                .size(120.dp)
+                .padding(vertical = 16.dp)
+        )
+        
+        // Today's date
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "Today",
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+            
+            Spacer(modifier = Modifier.weight(1f))
+            
+            Text(
+                text = SimpleDateFormat("MMMM d", Locale.getDefault()).format(Date()),
+                color = Color.White,
+                fontSize = 18.sp
             )
         }
-    }
-}
-
-@Composable
-fun HourlyWeatherItem(
-    time: String,
-    temperature: Int,
-    weatherIcon: Int,
-    isNow: Boolean
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .width(60.dp)
-            .padding(vertical = 8.dp)
-    ) {
-        Text(
-            text = time,
-            color = Color.White,
-            fontSize = 14.sp
-        )
         
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        Icon(
-            painter = painterResource(id = weatherIcon),
-            contentDescription = "Weather icon",
-            tint = Color.White,
-            modifier = Modifier.size(24.dp)
-        )
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        Text(
-            text = "$temperature°",
-            color = Color.White,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold
-        )
-    }
-}
-
-@Composable
-fun WeeklyForecastItem(
-    day: String,
-    weatherIcon: Int,
-    highTemp: Int,
-    lowTemp: Int
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Day name
-        Text(
-            text = day,
-            color = Color.White,
-            fontSize = 16.sp,
-            modifier = Modifier.width(60.dp)
-        )
-        
-        // Weather icon
-        Icon(
-            painter = painterResource(id = weatherIcon),
-            contentDescription = "Weather icon",
-            tint = Color.White,
+        // Hourly forecast
+        LazyRow(
             modifier = Modifier
-                .size(24.dp)
-                .padding(horizontal = 8.dp)
-        )
-        
-        Spacer(modifier = Modifier.weight(1f))
-        
-        // Temperature
-        Text(
-            text = "$highTemp°/$lowTemp°",
-            color = Color.White,
-            fontSize = 16.sp
-        )
+                .fillMaxWidth()
+                .padding(vertical = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            val hourlyForecasts = viewModel.forecastState
+            
+            itemsIndexed(hourlyForecasts) { index, hourlyModel ->
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .background(
+                            Color(0xFF8B5CF6).copy(alpha = 0.2f),
+                            RoundedCornerShape(16.dp)
+                        )
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "${hourlyModel.temp}°C",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    
+                    Image(
+                        painter = painterResource(
+                            id = when (hourlyModel.picPath) {
+                                "sunny" -> R.drawable.sunny
+                                "cloudy" -> R.drawable.cloudy
+                                "rainy" -> R.drawable.rain
+                                "cloudy_sunny" -> R.drawable.cloudy_sunny
+                                else -> R.drawable.cloudy_sunny
+                            }
+                        ),
+                        contentDescription = "Weather",
+                        modifier = Modifier.size(40.dp)
+                    )
+                    
+                    Text(
+                        text = hourlyModel.hour,
+                        color = Color.White,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+        }
     }
 }
 
 @Composable
-fun getWeatherIconForType(weatherType: String): Int {
-    return when (weatherType.lowercase()) {
-        "sunny", "clear" -> R.drawable.sunny
-        "cloudy", "partly cloudy" -> R.drawable.cloudy
-        "rainy", "rain", "light rain" -> R.drawable.rain
-        "cloudy_sunny" -> R.drawable.cloudy_sunny
-        else -> R.drawable.cloudy
+fun WeeklyForecastContent(weeklyForecast: List<DailyForecast>) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        // Region name and temperature range
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "North America",
+                color = Color.White,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold
+            )
+            
+            Text(
+                text = "Max: 24°   Min:18°",
+                color = Color.White,
+                fontSize = 16.sp
+            )
+        }
+        
+        // 7-Days Forecasts title
+        Text(
+            text = "7-Days Forecasts",
+            color = Color.White,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(vertical = 16.dp)
+        )
+        
+        // Weekly forecast cards
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(vertical = 8.dp)
+        ) {
+            itemsIndexed(weeklyForecast) { index, forecast ->
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .width(100.dp)
+                        .background(
+                            Color(0xFF8B5CF6).copy(alpha = 0.2f),
+                            RoundedCornerShape(16.dp)
+                        )
+                        .padding(vertical = 16.dp, horizontal = 8.dp)
+                ) {
+                    Text(
+                        text = "${forecast.maxTemp}°C",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    
+                    Image(
+                        painter = painterResource(id = forecast.icon),
+                        contentDescription = forecast.condition,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .padding(vertical = 8.dp)
+                    )
+                    
+                    Text(
+                        text = forecast.date.split(",").firstOrNull() ?: "",
+                        color = Color.White,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+        }
+        
+        // Air quality section
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF8B5CF6).copy(alpha = 0.2f)
+            ),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = "Air Quality",
+                        tint = Color.White
+                    )
+                    
+                    Text(
+                        text = "AIR QUALITY",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+                
+                Text(
+                    text = "3-Low Health Risk",
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "See more",
+                        color = Color.White,
+                        fontSize = 14.sp
+                    )
+                    
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowUp,
+                        contentDescription = "See more",
+                        tint = Color.White
+                    )
+                }
+            }
+        }
+        
+        // Sun info row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Sunrise card
+            Card(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFF8B5CF6).copy(alpha = 0.2f)
+                ),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "SUNRISE",
+                        color = Color.White,
+                        fontSize = 14.sp
+                    )
+                    
+                    Text(
+                        text = "5:28 AM",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    
+                    Text(
+                        text = "Sunset: 7:25PM",
+                        color = Color.White,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+            
+            // UV Index card
+            Card(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFF8B5CF6).copy(alpha = 0.2f)
+                ),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "UV INDEX",
+                        color = Color.White,
+                        fontSize = 14.sp
+                    )
+                    
+                    Text(
+                        text = "4",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    
+                    Text(
+                        text = "Moderate",
+                        color = Color.White,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        }
     }
 }
 
-// Keep existing functions below
 @Composable
 fun ThemeSelectionDialog(
     themes: List<ThemeOption>,
@@ -740,7 +1049,6 @@ fun AnimatedDropdownMenuItem(
     }
 }
 
-@Composable
 fun getCurrentTime(): String {
     val sdf = SimpleDateFormat("h:mm a", Locale.getDefault())
     return sdf.format(Date())
@@ -854,167 +1162,6 @@ fun WeatherDetailItem(icon: Int, value: String, label: String) {
             color = colorResource(id = R.color.white),
             textAlign = TextAlign.Center
         )
-    }
-}
-
-@Composable
-fun TodayWeatherContent(data: WeatherData, viewModel: WeatherViewModel) {
-    val currentTheme = getCurrentTheme()
-
-    // Create a mutable state for random rain value to make it interactive
-    val rainValue = remember(data) {
-        mutableFloatStateOf(data.precipitation)
-    }
-
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Top
-    ) {
-        item {
-            Text(
-                text = data.description,
-                fontSize = 20.sp,
-                color = Color.White,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp),
-                textAlign = TextAlign.Center
-            )
-
-            val weatherIconId = when (data.weatherType) {
-                "cloudy" -> R.drawable.cloudy
-                "sunny" -> R.drawable.sunny
-                "rainy" -> R.drawable.rain
-                else -> R.drawable.cloudy_sunny
-            }
-
-            // Add pulsating animation to weather icon
-            PulsatingIcon(iconId = weatherIconId)
-
-            Text(
-                text = "Today, ${getCurrentTime()}",
-                fontSize = 19.sp,
-                color = Color.White,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                textAlign = TextAlign.Center
-            )
-
-            Text(
-                text = "${data.temperature}°C",
-                fontSize = 60.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                textAlign = TextAlign.Center
-            )
-
-            Text(
-                text = "H:${data.maxTemp}° L:${data.minTemp}°",
-                fontSize = 16.sp,
-                color = Color.White,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                textAlign = TextAlign.Center
-            )
-
-            // Additional details - using theme color
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 16.dp)
-                    .background(
-                        color = currentTheme.primaryColor.copy(alpha = 0.2f),
-                        shape = RoundedCornerShape(16.dp)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    AnimatedWeatherDetailItem(
-                        icon = R.drawable.wind,
-                        value = "${data.windSpeed} m/s",
-                        label = "Wind",
-                        index = 0
-                    )
-                    AnimatedWeatherDetailItem(
-                        icon = R.drawable.humidity,
-                        value = "${data.humidity}%",
-                        label = "Humidity",
-                        index = 1
-                    )
-                    AnimatedWeatherDetailItem(
-                        icon = R.drawable.rain,
-                        value = "${String.format("%.1f", rainValue.floatValue)} mm",
-                        label = "Rain",
-                        index = 2
-                    )
-                }
-            }
-
-            // Today's forecast by hours
-            Text(
-                text = "Today's Weather",
-                fontSize = 20.sp,
-                color = Color.White,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 8.dp),
-                textAlign = TextAlign.Center
-            )
-        }
-
-        item {
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                itemsIndexed(viewModel.forecastState) { index, item ->
-                    FutureModelViewHolder(model = item, index = index)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun WeeklyForecastContent(weeklyForecast: List<DailyForecast>) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        item {
-            Text(
-                text = "7-Day Forecast",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp),
-                textAlign = TextAlign.Center
-            )
-        }
-
-        itemsIndexed(weeklyForecast) { index, forecast ->
-            AnimatedListItem(
-                content = { DailyForecastItem(forecast = forecast) },
-                index = index
-            )
-        }
     }
 }
 
@@ -1267,10 +1414,7 @@ fun AnimatedTemperatureBar(
                 modifier = Modifier
                     .width(10.dp)
                     .height(height.dp)
-                    .background(
-                        currentTheme.primaryColor,
-                        RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp)
-                    )
+                    .background(currentTheme.primaryColor.copy(alpha = 0.3f), RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp))
             )
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -1349,13 +1493,13 @@ fun AnimatedTemperatureBarForWeekly(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "$maxTemp°",
+                text = "${maxTemp}°",
                 color = Color.White,
                 fontSize = 14.sp
             )
 
             Text(
-                text = "$minTemp°",
+                text = "${minTemp}°",
                 color = Color.White.copy(alpha = 0.7f),
                 fontSize = 12.sp
             )
@@ -1457,6 +1601,75 @@ fun AnimatedButton(text: String, onClick: () -> Unit) {
         if (isPressed) {
             delay(100)
             isPressed = false
+        }
+    }
+}
+
+@Composable
+fun WelcomeScreen(onGetStarted: () -> Unit) {
+    val purpleGradient = Brush.verticalGradient(
+        colors = listOf(
+            Color(0xFF8B5CF6), // Light purple
+            Color(0xFF4C1D95)  // Dark purple
+        )
+    )
+    
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(purpleGradient),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(32.dp)
+        ) {
+            // Weather icon
+            Image(
+                painter = painterResource(id = R.drawable.cloudy_sunny),
+                contentDescription = "Weather Icon",
+                modifier = Modifier
+                    .size(200.dp)
+                    .padding(bottom = 32.dp)
+            )
+            
+            // Title with two colors
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "Weather",
+                    color = Color.White,
+                    fontSize = 48.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                Text(
+                    text = "ForeCasts",
+                    color = Color(0xFFFCD34D), // Yellow color
+                    fontSize = 48.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            
+            Spacer(modifier = Modifier.weight(1f))
+            
+            // Get Started button
+            Button(
+                onClick = onGetStarted,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFFCD34D) // Yellow color
+                ),
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+            ) {
+                Text(
+                    text = "Get Start",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF4C1D95) // Dark purple
+                )
+            }
         }
     }
 }
